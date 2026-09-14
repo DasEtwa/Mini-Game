@@ -71,8 +71,16 @@ struct ContentView: View {
                     case .cooling: CoolingView()
                     case .settings: SettingsView()
                     }
-                }.toolbar { ToolbarItem(placement:.topBarTrailing) { Button("Fertig") { destination = nil }.accessibilityIdentifier("close-sheet") } }
-            }.tint(Theme.teal).presentationDragIndicator(.visible)
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button { destination = nil } label: {
+                    Label("Zurück ins Zimmer", systemImage: "house.fill")
+                        .font(.subheadline.bold()).frame(maxWidth: .infinity, minHeight: 48)
+                }.accessibilityIdentifier("close-sheet").buttonStyle(.borderedProminent)
+                    .padding(.horizontal, 18).padding(.vertical, 8).background(Theme.cream)
+            }
+            .tint(Theme.teal).presentationDragIndicator(.visible)
         }
         .alert("Rack & Rich",isPresented:Binding(get:{ store.message != nil },set:{ if !$0 { store.message = nil } })) { Button("Alles klar") { store.message = nil } } message: { Text(store.message ?? "") }
         .onReceive(timer) { _ in store.tick() }
