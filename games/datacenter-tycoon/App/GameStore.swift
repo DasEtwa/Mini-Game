@@ -162,6 +162,7 @@ private enum UITestFixtures {
             var customer = template
             customer.id = UUID(); customer.name = "GarageTest\(index)"
             customer.booked = .init(cpu: 0.1, ram: 0.1, storage: 1, network: 0.1)
+            customer.contract = CustomerContract(months: 3, hour: 0)
             customer.monthlyPrice = 250; customer.serverID = state.servers[0].id
             return customer
         }

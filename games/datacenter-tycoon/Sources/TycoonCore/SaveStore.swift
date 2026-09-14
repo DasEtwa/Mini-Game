@@ -31,7 +31,8 @@ public enum SaveStore {
                   customer.uptimeExpectation <= 1, customer.satisfaction <= 100, (-24...24).contains(customer.phase),
                   customer.serverID == nil || state.servers.contains(where: { $0.id == customer.serverID }) else { throw GameError.rule("Ungültiger Kundenvertrag.") }
         }
-        guard state.customers.allSatisfy({ $0.serverID != nil }) else { throw GameError.rule("Kunde ohne Host.") }
+        try HardwareSystem.validateRoom(state)
+        guard state.customers.allSatisfy({ $0.serverID != nil && $0.contract != nil }) else { throw GameError.rule("Kunde ohne Host.") }
     }
     public static func encode(_ state: GameState) throws -> Data {
         try validate(state)
@@ -49,7 +50,7 @@ public enum SaveStore {
     private static func migrate(_ data: Data) throws -> Data {
         guard var json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw GameError.rule("Spielstand unlesbar.") }
         json["saveVersion"] = 2
-        json["powerID"] = "home-max"
+        json["powerID"] = (json["location"] as? String) == "garage" ? "business" : "home-max"
         var state = try JSONDecoder().decode(GameState.self, from: JSONSerialization.data(withJSONObject: json))
         // Reject malformed legacy references before using catalog-derived properties.
         for rack in state.racks {
@@ -67,13 +68,14 @@ public enum SaveStore {
                 state.record(refund, "Migration: Differenz der Home-Racks erstattet")
             } else {
                 state.location = .garage
+                state.powerID = "business"
                 state.log("Bestandsschutz: Deine großen Racks ziehen kostenlos in die Garage. Alle Server und Kunden bleiben erhalten.")
             }
         }
         for i in state.customers.indices {
             state.customers[i].contract = CustomerContract(months: 3, hour: state.hour, priceFactor: state.priceFactor)
         }
-        state.log("Update: Bestehende Kunden erhalten drei Monate Laufzeit. Home Power Max ist für deinen Bestand freigeschaltet.")
+        state.log("Update: Bestehende Kunden erhalten drei Monate Laufzeit. Ein passender Stromvertrag ist für deinen Bestand freigeschaltet.")
         return try JSONEncoder().encode(state)
     }
     private struct VersionEnvelope: Decodable { let saveVersion: Int }

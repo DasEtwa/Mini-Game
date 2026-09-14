@@ -1,12 +1,17 @@
-Erstes spielbares Release von **Rack & Rich — Datacenter Tycoon**.
+**Rack & Rich v0.1.1 — Room first**
 
-- Gemütliches Kinderzimmer mit interaktivem Laptop und sichtbaren Racks.
-- Eigene Server mit austauschbarer CPU, RAM, Storage, Mainboard und Netzteil.
-- Kundenanfragen, dynamische Last, Zeitzonen, Preise und Reputation.
-- Hosting-Einnahmen, Miete, Internet, Strom, Kühlung und seltene Reparaturen.
-- Garage als erstes Ausbauziel mit vier Rack-Plätzen und Business Fiber.
-- Lokaler versionierter Spielstand, Backup und begrenzter Offline-Fortschritt.
+- Feste, nahezu bildschirmfüllende Raumansicht mit kompaktem Live-HUD; Laptop, Racks, freie Stellplätze, Tür und Kühlung direkt antippen.
+- Kompakter Laptop und aufklappbare Detailbereiche. Der große untere Zurück-Button entfällt; oben bleibt Schließen auch in Unterseiten erreichbar.
+- Käufe reagieren sofort: Save-Dateien und Audiovorbereitung laufen im Hintergrund. Ein Audiokanal verhindert aufgestapelte Kaufsounds.
+- 1.900 € Startkapital, kleinere frühe Verträge, langsamere Nachfrage und nachvollziehbare Investitionsentscheidungen.
+- Befristete Kundenverträge mit sichtbarer Restlaufzeit, Zufriedenheit und qualitätsabhängiger Verlängerung/Kündigung.
+- Vier Stromtarife: Spitzenleistung reservieren, tatsächlichen lastabhängigen Verbrauch bezahlen.
+- Kinderzimmer strikt auf 2 Home Racks mit je 2 Systemen begrenzt; Garage schaltet größere Racks frei.
+- Save-Schema 2 mit verlustfreier Migration bestehender Spielstände. Begrenzter IT-Nebenjob ermöglicht Erholung nach Fehlkäufen.
+- Erweiterte Core-/UI-Tests und BalanceLab mit sieben Strategien und fünf Seeds.
 
-**iOS 17+**. Die beigefügte IPA ist ein unsignierter Gerätebuild für die Signierung und Installation mit SideStore. Keine Apple-Zertifikate, Accounts oder Tracking-Dienste im Spiel. Die Installation mit SideStore auf einem physischen iPhone ist separat erforderlich.
+**iOS 17+**, iPhone-Hochformat. `RackAndRich.ipa` ist ein unsignierter Gerätebuild für SideStore. Mit derselben App-Identität installieren, die vorhandene App vorher nicht löschen. Keine Accounts, Werbung oder Tracking im Spiel.
 
-Anleitung: `games/datacenter-tycoon/README.md` im Repository. Prüfsumme: `RackAndRich.ipa.sha256`.
+Installation und Validierungsprotokoll: [README](https://github.com/DasEtwa/Mini-Game/tree/main/games/datacenter-tycoon). SHA-256: `RackAndRich.ipa.sha256`.
+
+Der vorhandene Tag v0.1.0 bleibt unverändert. Sein Release-Workflow war fehlgeschlagen; v0.1.1 wird als neuer Tag mit eigenen geprüften Assets veröffentlicht.

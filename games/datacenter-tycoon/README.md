@@ -1,8 +1,10 @@
 # Rack & Rich — Datacenter Tycoon
 
-Ein gemütliches, vollständig lokales iOS-Tycoon: Papas alter Server, ein Kinderzimmer und 5.000 € werden zum eigenen Hosting-Unternehmen. Baue physische Server, wähle passende Kunden und ziehe in die Garage.
+Ein gemütliches, vollständig lokales iOS-Tycoon: Papas alter Server, ein Kinderzimmer und 1.900 € werden zum eigenen Hosting-Unternehmen. Baue physische Server, wähle passende Kunden und ziehe in die Garage.
 
-**Version:** 0.1.0 · **Ziel:** Milestone 1 · **iOS:** 17 oder neuer · **Technik:** SwiftUI, Swift Charts, Foundation, AVFoundation. Keine Laufzeit-Abhängigkeiten von Drittanbietern.
+**Room first. HUD second. Laptop for management.**
+
+**Version:** 0.1.1 · **Ziel:** Milestone 1 · **iOS:** 17 oder neuer · **Technik:** SwiftUI, Swift Charts, Foundation, AVFoundation. Keine Laufzeit-Abhängigkeiten von Drittanbietern.
 
 <img src="Docs/Screenshots/bedroom.png" width="280" alt="Kinderzimmer mit antippbarem Laptop, Bett und erstem Serverrack auf einem iPhone-Simulator">
 <img src="Docs/Screenshots/garage.png" width="280" alt="Garage mit vier Racks, Werkbank und Kühlung">
@@ -13,18 +15,21 @@ Ein gemütliches, vollständig lokales iOS-Tycoon: Papas alter Server, ein Kinde
 2. Öffne das Rack → Server → Komponenten. FX 8400 und zusätzlicher RAM helfen beim Start.
 3. Prüfe CPU, RAM, Upload und Wärme. Buchung und tatsächliche Nutzung sind unterschiedlich; Kunden haben verschiedene Zeitzonen.
 4. Betreute Websites, Shops und Teams zahlen deutlich mehr als kleine private VPS. Reputation schaltet sie frei. Wähle profitable Anfragen und halte Kapazität frei.
-5. Baue Storage, Systeme, Kühlung und Internet aus. Das A5-Plattform-Kit tauscht Mainboard, CPU und RAM gemeinsam.
+5. Baue Storage, Systeme, Kühlung und Internet aus. Der Laptop-Bereich Strom zeigt Verbrauch und reservierte Spitzenleistung. Das A5-Plattform-Kit tauscht Mainboard, CPU und RAM gemeinsam.
 6. Spare 18.000 €, erreiche 12 Kunden, 2.500 € Vertragsumsatz/Monat und 60 Reputation. Öffne die Tür und richte die Garage ein.
 7. Ein Spieltag erfolgreiches Kundenhosting in der Garage beendet Milestone 1. Danach kannst du vier Racks ausbauen.
 
-**Tempo:** 18 echte Sekunden = 1 Spieltag, 9 Minuten = 1 Monat bei 1×. Die Einstellungen bieten Pause und 2×/3×. Kunden zahlen zeitanteilig zum Monatsende; schlechte Leistung reduziert Zahlungen. Die ersten drei Monate gibt es je 400 € Mieterstattung. Bei Geldnot hilft die Familie einmalig mit 2.000 €; danach kannst du ein neues Spiel beginnen. Prognosen enthalten keine Einmalkäufe oder Starthilfe.
+**Tempo:** 18 echte Sekunden = 1 Spieltag, 9 Minuten = 1 Monat bei 1×. Die Einstellungen bieten Pause und 2×/3×. Kunden zahlen zeitanteilig zum Monatsende; schlechte Leistung reduziert Zahlungen. Die ersten drei Monate gibt es je 400 € Mieterstattung. Bei Geldnot hilft die Familie einmalig mit 2.000 €; zusätzlich gibt es unter 500 € einen begrenzten 600-€-IT-Nebenjob je Spielmonat. Prognosen enthalten keine Einmalkäufe oder Starthilfe.
 
 ## Features
 
+- Feste Raumansicht ohne Scroll-Feed, kleines Live-HUD und kompakter Laptop mit oberer Schließen-Aktion.
 - Zwei selbst gezeichnete, interaktive Räume mit Laptop, Bett/Werkbank, Tür, Kabeln und sichtbaren Racks.
+- Kinderzimmer: 2 Home Racks × 2 Systeme; Garage: 4 Stellplätze und größere 4-/6-Slot-Racks.
 - 3 Rack-Größen, 5 Komponentenkategorien, kompatible Plattform-Kits, echte Host-Zuweisung.
-- 8 Kundentypen, 3 Regionen, 4 Lastzustände, veränderbare Angebotspreise, Zufriedenheit und Kündigungen.
+- 8 Kundentypen, 3 Regionen, 4 Lastzustände, veränderbare Angebotspreise, Zufriedenheit und befristete 1-/2-/3-/6-Monatsverträge mit Verlängerung oder Kündigung.
 - CPU, RAM, Storage, Upload, Raum-/Rack-Strom und Wärme; Oversubscription mit begrenzter Buchung.
+- 4 Stromverträge mit Leistungsgrenzen, lastabhängigem Verbrauch und anteiligen Grundgebühren.
 - 4 Internettarife, 3 Kühlungsstufen, seltene Reparaturen, Reputation, Kontobuch und Verlaufsgrafiken.
 - Tutorial, optionaler selbst synthetisierter Kaufsound, lokaler Save mit Backup und Offline-Simulation.
 - Kein Account, Tracking, Werbung, In-App-Kauf oder Netzwerkzugriff im Spiel.
@@ -47,6 +52,8 @@ Core-Tests laufen auf macOS und Linux:
 ```sh
 swift test --parallel
 swift run -c release BalanceLab
+# Optional: 175 Läufe mit fünf verschiedenen Startbudgets
+swift run -c release BalanceLab --cash-trials
 ```
 
 Ohne lokale Swift-Installation unter Linux:
@@ -67,11 +74,11 @@ Den Simulatornamen gegebenenfalls an `xcrun simctl list devices available` anpas
 
 ## GitHub Actions & Releases
 
-[Workflow](https://github.com/DasEtwa/Mini-Game/actions/workflows/datacenter-tycoon.yml) läuft auf `macos-15`: Swift-Unit-Tests, fünf Balancing-Szenarien, XcodeGen, iOS-Unit-/UI-Tests, Release-Archiv für echte Geräte, IPA-Strukturprüfung und Artefakt-Upload. Tests, Logs und Screenshots liegen im separaten Test-Artefakt. Swift-Warnungen werden als Fehler behandelt.
+[Workflow](https://github.com/DasEtwa/Mini-Game/actions/workflows/datacenter-tycoon.yml) läuft auf `macos-15`: Swift-Unit-Tests, 35 Balancing-Szenarien (7 Strategien × 5 Seeds), XcodeGen, iOS-Unit-/UI-Tests, Release-Archiv für echte Geräte, IPA-Strukturprüfung und Artefakt-Upload. Tests, Logs und Screenshots liegen im separaten Test-Artefakt. Swift-Warnungen werden als Fehler behandelt.
 
 Unter Actions → erfolgreicher Lauf → **RackAndRich-unsigned-ipa** liegt die IPA (bei Artifact-Download zunächst das äußere ZIP entpacken).
 
-Ein Tag `v0.1.0` startet dieselben Prüfungen. Nur nach erfolgreichem Build veröffentlicht der Release-Job die IPA und SHA-256-Prüfsumme in einem [GitHub Release](https://github.com/DasEtwa/Mini-Game/releases). Keine Apple-Secrets oder privaten Zertifikate. `GITHUB_TOKEN` erhält nur im Release-Job Schreibrechte.
+Ein Tag wie `v0.1.1` startet dieselben Prüfungen. Nur nach erfolgreichem Build veröffentlicht der Release-Job die IPA und SHA-256-Prüfsumme in einem [GitHub Release](https://github.com/DasEtwa/Mini-Game/releases). Keine Apple-Secrets oder privaten Zertifikate. `GITHUB_TOKEN` erhält nur im Release-Job Schreibrechte.
 
 ## Installation mit SideStore
 
@@ -84,7 +91,7 @@ Die IPA ist ein ZIP mit `Payload/RackAndRich.app`, ARM64-Gerätecode und eingebe
 
 ## Savegame & Datenschutz
 
-`Library/Application Support/RackAndRich/save-v1.json` im App-Sandbox-Verzeichnis; letzte gültige Fassung unter `save-v1.json.backup`. Automatisch alle 10 Sekunden, nach Käufen/Vertragsaktionen und beim Verlassen speichern. JSON-Schema `saveVersion = 1`, ID-/Kompatibilitätsvalidierung, atomare Dateiersetzung. Neuere Versionsnummern werden abgelehnt und niemals automatisch überschrieben. Bei beschädigtem Save kann die Sicherung explizit wiederhergestellt werden; die beschädigte Datei wird archiviert. Neustart archiviert den bisherigen Stand.
+`Library/Application Support/RackAndRich/save-v1.json` im App-Sandbox-Verzeichnis; letzte gültige Fassung unter `save-v1.json.backup`. Automatisch alle 10 Sekunden, nach Käufen/Vertragsaktionen und beim Verlassen speichern. JSON-Schema `saveVersion = 2`, ID-/Kompatibilitätsvalidierung, atomare Dateiersetzung auf einer seriellen Hintergrund-Queue. Schema 1 wird automatisch migriert: bestehende Kunden bekommen drei Monate Laufzeit; unzulässige Kinderzimmer-Racks werden verlustfrei in Home Racks aufgeteilt und die Preisdifferenz erstattet. Bei mehr als vier vorhandenen Systemen erfolgt ein kostenloser Garagenumzug als Bestandsschutz. Alle Server- und Kunden-IDs bleiben erhalten. Passende Stromverträge werden übernommen. Der Dateiname bleibt für Update-Kompatibilität unverändert. Neuere Versionsnummern werden abgelehnt und niemals automatisch überschrieben. Bei beschädigtem Save kann die Sicherung explizit wiederhergestellt werden; die beschädigte Datei wird archiviert. Neustart archiviert den bisherigen Stand.
 
 Offline-Fortschritt: maximal 2 reale Stunden bei 1×, einschließlich Kosten, Nachfrage, Kündigungen und Reparaturereignissen. Rückwärts laufende Uhr erzeugt keine Belohnung; ein vorgerückter Zeitpunkt wird nicht zurückgesetzt. Ohne vertrauenswürdigen Server lässt sich absichtliche Zeitmanipulation nicht vollständig verhindern. Pause gilt während die App geöffnet ist, Offline-Zeit läuft weiter.
 
