@@ -10,6 +10,7 @@ enum Theme {
 }
 func euro(_ value: Double) -> String { value.formatted(.currency(code: "EUR").precision(.fractionLength(0)).locale(Locale(identifier: "de_DE"))) }
 func number(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...1)).locale(Locale(identifier: "de_DE"))) }
+func energyRate(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(2)).locale(Locale(identifier: "de_DE"))) }
 struct Panel<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View { VStack(alignment: .leading, spacing: 12) { content }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(.white.opacity(0.88), in: RoundedRectangle(cornerRadius: 22)).overlay(RoundedRectangle(cornerRadius: 22).stroke(Theme.ink.opacity(0.06))) }

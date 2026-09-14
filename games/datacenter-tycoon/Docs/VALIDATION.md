@@ -1,40 +1,49 @@
-# Validierungsprotokoll — v0.1.0
+# Validierung — v0.1.1
 
-Stand: 14. September 2026. Die Release-Pipeline prüft den finalen Tag erneut vor der Veröffentlichung.
+Stand: 14. September 2026. Der Tag v0.1.0 bleibt unverändert. Dessen Release-Lauf scheiterte; ein neuer, vollständig geprüfter v0.1.1-Tag soll eigene Assets veröffentlichen.
 
-## Prüfumfang
+## Logik und Balancing
 
-- 29 Swift-Core-Tests: Economy, monatliche/zeitanteilige Abrechnung, Strom, Tarifwechsel, Hardwarekapazität und -kompatibilität, RAM-/Storage-Slots, Rack-/Raumlimits, Kunde/Host, Tageszeit/Regionen, Reputation, Ausfälle, Garage, Save/Backup und Offline-Fortschritt.
-- Linux: Swift 6.2.3; macOS-/iOS-CI: Xcode 16.4, Apple Swift 6.1.2.
-- UI: iPhone SE (3. Generation) und iPhone 16 Pro Max, iOS 18.5. Je zwei UI-Testfälle: erster Kunde → Rack → App beenden/neu laden → Garagenziel; Garage mit vier Racks → Rack öffnen → Dashboard.
-- Gerätearchiv: Release, ARM64, iOS 17.0+, Bundle `de.dasetwa.rackandrich`, Version `0.1.0`, Build `1`.
-- IPA-Prüfung: ZIP-Integrität, `Payload/RackAndRich.app`, Mach-O-Binary, iPhoneOS-Plattform, Bundle-/Versionswerte und eingebettetes Core-Framework. SHA-256 wird als separates Asset veröffentlicht.
-- Visuelle QA: Kinderzimmer, Garage mit vier Racks, Kundenansicht und Rackverwaltung auf kleinen/großen iPhones. Verwaltung scrollt auf kleinen Displays; die Rückkehr-Schaltfläche bleibt erreichbar. Room-Grafik nach Feedback überarbeitet: klare Abstände, detailliertere Möbel, Rack-Beschriftungen ohne überlagerte Kühlungsschaltfläche.
-- Kein Netzwerk-, Tracking-, Werbe- oder Kauf-SDK im App-Quellcode. Physische GPU-Vermietung und Bursting bleiben deaktiviert/vorbereitet.
+- 43 Core-Tests unter Linux mit Swift 6.2.3 bestanden. Bestehende Tests bleiben erhalten, Erwartungen an Startgeld/Strom wurden der neuen Balance angepasst.
+- Zusätzliche Abdeckung: strikte Rackklassen, atomare Kauf-/Upgrade-Ablehnung, Spitzenleistung und Vertragswechsel, Lastverbrauch und anteilige Strom-Grundgebühren, Laufzeiten, Verlängerung/Kündigung, Qualitätswirkung, Save-Roundtrip, v1-Migration einschließlich übergroßer Bestandsracks, ungültige Altdaten, Audio-Burst-Begrenzung, langsame Nachfrage und begrenzte Recovery-Arbeit.
+- 175 Balance-Läufe: 5 Startbudgets × 7 Strategien × 5 Seeds, alle erreichen die Garage. Rohwerte: [BalanceResults.csv](BalanceResults.csv).
+- Im Produktionslauf mit 1.900 €: 35/35 erfolgreich, kein wirtschaftlicher Stillstand im Testhorizont. Schlechtester kurzfristiger Kontostand −134 € nach absichtlichen Fehlkäufen, anschließend Erholung über normale Spielaktionen. Das ist kein Beweis für jede denkbare Strategie.
 
-## Ergebnisse und behobene Befunde
+Zeiten in realen Minuten bei 1×, einschließlich eines erfolgreichen Betriebstags in der Garage:
 
-- Alle Core-Tests lokal bestanden; fünf Balance-Szenarien erfolgreich. Der zusätzliche 29. Test prüft, dass ausgeschaltete Hosts andere Kunden nicht durch fiktiven Upload belasten und reservierte Daten erhalten bleiben.
-- [Vollständiger Build mit überarbeiteter Grafik](https://github.com/DasEtwa/Mini-Game/actions/runs/34832943039): Core- und UI-Tests, Gerätearchiv, IPA-Prüfung und Artefakt-Upload erfolgreich.
-- [Abschlussprüfung mit Ausfall-Korrektur](https://github.com/DasEtwa/Mini-Game/actions/runs/34833672267): 29 Core-Tests, beide iPhone-UI-Läufe, Gerätearchiv, IPA-Prüfung und Artefakt-Upload erfolgreich. Der Release-Job veröffentlicht zusätzlich nur nach erfolgreicher Prüfung des Tags.
-- Swift-Compilerwarnungen werden als Fehler behandelt. Xcodes Hinweis zur übersprungenen AppIntents-Metadatenextraktion ist erwartet: Die App bietet keine AppIntents an. GitHub meldet bei den v4-Actions die automatische Node-24-Umstellung; die Actions funktionieren.
-- Behoben: zu komplexe numerische Testexpression, fehlende Schließen-Aktion in tiefer Navigation, falscher XcodeGen-Versionsdefault, endlos wachsender Erfolgszähler, möglicher veralteter Lifecycle-Ladevorgang und Uploadverbrauch ausgeschalteter Hosts.
-- Die Screenshots im README stammen aus echten Simulatorläufen, nicht aus Mockups. Der Garage-Test verwendet eine ausschließlich im Debug-Build verfügbare Fixture; BalanceLab erreicht die Garage dagegen ausschließlich über normale Gameplay-APIs.
-
-## Balancing
-
-Normales Tempo, automatisierte aktive Strategie, keine Geld-Cheats:
-
-| Seed | Garage erfolgreich nach | Kunden | Vertragsumsatz/Monat | Systeme |
+| Strategie | Schnellster Lauf | Mittel | Langsamster Lauf | Garage |
 | --- | ---: | ---: | ---: | ---: |
-| 1 | 36,3 Minuten | 58 | 15.179 € | 3 |
-| 7 | 36,3 Minuten | 60 | 13.535 € | 3 |
-| 42 | 36,3 Minuten | 58 | 12.275 € | 3 |
-| 123 | 36,3 Minuten | 60 | 14.009 € | 3 |
-| 999 | 36,3 Minuten | 64 | 13.881 € | 3 |
+| Aggressiv | 63,3 | 66,9 | 72,3 | 5/5 |
+| Konservativ | 81,3 | 99,3 | 135,3 | 5/5 |
+| Fehlkäufe | 81,9 | 92,5 | 99,9 | 5/5 |
+| Zu frühe Upgrades | 72,3 | 75,9 | 81,3 | 5/5 |
+| Wenig Annahmen | 108,3 | 135,3 | 153,3 | 5/5 |
+| Viele Annahmen | 72,3 | 83,1 | 90,3 | 5/5 |
+| Zusätzliches Kündigungspech | 72,3 | 72,3 | 72,3 | 5/5 |
 
-Die Zahlung am Monatswechsel führt bei dieser zügigen Strategie zum gleichen Freischaltmonat; die wirtschaftlichen Ergebnisse unterscheiden sich nach Seed. Die Prüfung fordert für jeden Seed eine erfolgreiche Garage innerhalb von 30–90 Minuten bei 1×. Das ist ein Simulationstest, keine gemessene menschliche Spielzeit oder Garantie für jede Strategie. 2×/3× beschleunigen entsprechend.
+Der aggressive Median liegt bei 63,3 Minuten, der konservative bei 90,3 Minuten. Die Zielbereiche werden im Mittel getroffen; einzelne konservative Seeds benötigen länger als 120 Minuten. Die Monatsabrechnung führt zu Zeitstufen von etwa 9 Minuten. Kündigungspech ist keine garantierte Zeitverlängerung: frei werdende Kapazität und ein anderer späterer Kundenmix können Verluste ausgleichen.
 
-## Grenze der Prüfung
+Bei aggressivem Spiel erfolgen erste Upgrades nach 3,3–6,9 Minuten; erste Zahlungen nach 9 Minuten. Die erste positive Monatsprognose liegt später. Der extrem zurückhaltende Bot prüft nur alle 4,5 Minuten eine Anfrage und verzögert auch Upgrades bewusst.
 
-Hier ist kein physisches iPhone angeschlossen. SideStore-Signierung und Installation auf einem echten Gerät, Geräteleistung und subjektives Spielgefühl wurden deshalb nicht praktisch bestätigt. Die IPA ist ein erfolgreicher unsignierter Gerätebuild; SideStore muss sie mit dem Account auf dem iPhone signieren. Simulator-/Core-Tests ersetzen diesen letzten Gerätetest nicht. Derzeit nur deutsche Oberfläche und feste helle Spielpalette; keine vollständige VoiceOver-/Dynamic-Type-Zertifizierung.
+## iOS-Prüfung
+
+Die macOS-Pipeline baut mit vollständiger Concurrency-Prüfung und behandelt Swift-Warnungen als Fehler. Die zwei ersten Prüfungen fanden und beseitigten einen zu komplexen Sound-Ausdruck und eine fehlende nichtisolierte Equatable-Implementierung der SwiftUI-Raumansicht.
+
+Aktuell laufen die erneuten Simulator-/UI-/Archivprüfungen. Ein erfolgreicher IPA-/Release-Status wird erst nach ihrem Abschluss eingetragen.
+
+Die UI-Tests prüfen auf einem kleinen und großen iPhone:
+
+1. Hauptscreen ohne ScrollView; Laptop, Rack, Tür und freier Stellplatz direkt erreichbar.
+2. Kunde annehmen, Rack/Server öffnen, CPU kaufen, oben schließen, App beenden und Spielstand erneut laden.
+3. Laptop/Strom, Standortseite und erreichbare Kauf-/Upgrade-Aktionen ohne unteren Zurück-Button.
+4. Vier Garage-Racks, Studio-Rack-Upgrade, Dashboard und Garagenfreischaltung über die Tür.
+
+Die Garage-Fixtures sind ausschließlich im Debug-Build verfügbar. BalanceLab verwendet dagegen keine Freischalt-Cheats. Das Gerätearchiv ist ARM64, iOS 17+, Bundle `de.dasetwa.rackandrich`, Version 0.1.1, Build 2. Die IPA-Prüfung kontrolliert ZIP/Payload, Mach-O, Plattform, Bundle-Version und Core-Framework.
+
+## Laufzeit und Grenzen
+
+- Normale Taps aktualisieren den Spielzustand synchron; Dateiprüfung, Backup und Schreiben laufen seriell im Hintergrund. Lifecycle-Laden wartet außerhalb des UI-Threads auf vorherige Schreibvorgänge. Ein iOS-Hintergrundtask schützt das abschließende Speichern beim Verlassen.
+- Audio hält genau einen Player auf einer eigenen seriellen Queue, startet ihn neu und begrenzt identische Trigger auf höchstens einen pro 60 ms. Gameplay-Aktionen durchlaufen diese Sperre nicht.
+- Die Raumansicht vergleicht nur Standort, Racks und Kühlung; Uhrzeit/Kontostand lösen keine Neuzeichnung ihrer Möbel aus. Die kleine stündliche Simulation bleibt auf dem Main Actor, große Offline-Schritte laufen außerhalb davon.
+- Der Nutzer hat v0.1.0 auf einem echten iPhone gespielt. Hier ist kein physisches iPhone angeschlossen; subjektive Touch-Latenz, Audiolautstärke und SideStore-Update von v0.1.1 müssen auf dem Gerät nachgeprüft werden. Simulatorerfolg ist keine physische Audio-/Latenzmessung.
+- Deutsche Oberfläche und feste helle Farbpalette. iPhone/iPad im Hochformat, keine vollständige Dynamic-Type-/VoiceOver-Zertifizierung.

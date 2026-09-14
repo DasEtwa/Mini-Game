@@ -157,4 +157,10 @@ final class PolishTests: XCTestCase {
         XCTAssertThrowsError(try SaveStore.decode(legacyData(g)))
     }
 
+    func testDuplicateComponentDoesNotChargeAgain() {
+        var g = GameState(); let before = g
+        XCTAssertThrowsError(try ShopSystem.replace(serverID: g.servers[0].id, partID: "cpu-old", in: &g))
+        XCTAssertEqual(g, before)
+    }
+
 }

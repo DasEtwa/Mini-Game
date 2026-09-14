@@ -85,7 +85,7 @@ struct FinanceView: View {
                 StatLine(label:"Internet",value:euro(store.game.plan.monthly))
                 StatLine(label:"Strom",value:euro(store.game.monthlyPowerCost))
                 Divider(); StatLine(label:"Gewinn",value:euro(store.game.monthlyProfit))
-                Text("Strom: \(Int(store.game.watts)) W ÷ 1.000 × 720 h × \(number(store.game.powerPlan.kWh)) €/kWh + \(euro(store.game.powerPlan.monthly)) Grundgebühr. Prognose ohne Ausfälle, Starthilfe und Einmalkäufe.").font(.caption).foregroundStyle(Theme.muted)
+                Text("Strom: \(Int(store.game.watts)) W ÷ 1.000 × 720 h × \(energyRate(store.game.powerPlan.kWh)) €/kWh + \(euro(store.game.powerPlan.monthly)) Grundgebühr. Prognose ohne Ausfälle, Starthilfe und Einmalkäufe.").font(.caption).foregroundStyle(Theme.muted)
             }
             Panel {
                 Text("Laufender Monat").font(.headline)
@@ -213,7 +213,7 @@ struct PowerView: View {
                 Panel {
                     Text(plan.name).font(.headline)
                     StatLine(label: "Anschlussleistung", value: "\(Int(plan.watts)) W")
-                    StatLine(label: "Arbeitspreis", value: "\(number(plan.kWh)) €/kWh")
+                    StatLine(label: "Arbeitspreis", value: "\(energyRate(plan.kWh)) €/kWh")
                     StatLine(label: "Grundgebühr / Monat", value: euro(plan.monthly))
                     StatLine(label: "Einrichtung", value: euro(plan.setup))
                     if plan.id == store.game.powerID { Label("Aktiv", systemImage: "checkmark.seal.fill").foregroundStyle(Theme.teal) }

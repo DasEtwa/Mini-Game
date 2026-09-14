@@ -81,6 +81,7 @@ public enum ShopSystem {
         case .storage: server.storage = append ? server.storage + [part.id] : [part.id]
         case .psu: server.psu = part.id
         }
+        guard server != next.racks[r].servers[s] else { throw GameError.rule("Diese Komponente ist bereits eingebaut.") }
         try HardwareSystem.validate(server)
         guard HardwareSystem.booked(on: server.id, in: state).storage <= server.capacity.storage else { throw GameError.rule("Belegte Kundendaten passen nicht auf diesen Speicher.") }
         next.racks[r].servers[s] = server

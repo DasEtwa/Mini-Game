@@ -96,6 +96,10 @@ for cash in trials {
             let r = play(seed: seed, cash: cash, strategy: strategy)
             print("cash=\(Int(cash)) strategy=\(strategy.rawValue) seed=\(seed) minutes=\(r.minutes) garage=\(r.state.milestoneCompleted) minCash=\(Int(r.minimumCash)) profitAt=\(r.firstProfit ?? -1) upgradeAt=\(r.firstUpgrade ?? -1) clients=\(r.state.customers.count) MRR=\(Int(r.state.monthlyRevenue)) rep=\(Int(r.state.reputation)) servers=\(r.state.servers.count)")
             if !r.state.milestoneCompleted || r.minimumCash < -500 { failures += 1 }
+            if cash == Balance.startCash {
+                let window: ClosedRange<Double> = strategy == .aggressive ? 50...76 : strategy == .lowAcceptance ? 90...180 : 60...160
+                if !window.contains(r.minutes) { print("Timing outside regression window: \(strategy.rawValue)"); failures += 1 }
+            }
         }
     }
 }

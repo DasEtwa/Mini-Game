@@ -95,7 +95,7 @@ Die IPA ist ein ZIP mit `Payload/RackAndRich.app`, ARM64-Gerätecode und eingebe
 
 Offline-Fortschritt: maximal 2 reale Stunden bei 1×, einschließlich Kosten, Nachfrage, Kündigungen und Reparaturereignissen. Rückwärts laufende Uhr erzeugt keine Belohnung; ein vorgerückter Zeitpunkt wird nicht zurückgesetzt. Ohne vertrauenswürdigen Server lässt sich absichtliche Zeitmanipulation nicht vollständig verhindern. Pause gilt während die App geöffnet ist, Offline-Zeit läuft weiter.
 
-Die App erzwingt eine helle, kontrastreiche Spielpalette auch bei systemweitem Dark Mode. Verwaltung scrollt, wichtige Aktionen haben große Touch-Flächen, Raumelemente besitzen VoiceOver-Labels. iPad wird unterstützt, iPhone-Hochformat ist primär.
+Die App erzwingt eine helle, kontrastreiche Spielpalette auch bei systemweitem Dark Mode. Verwaltung scrollt, wichtige Aktionen haben große Touch-Flächen, Raumelemente besitzen VoiceOver-Labels. iPhone und iPad verwenden Hochformat; die UI-Prüfung konzentriert sich auf kleine und große iPhones.
 
 ## Architektur
 

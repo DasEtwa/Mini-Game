@@ -9,6 +9,7 @@ struct ContentView: View {
     @EnvironmentObject var store: GameStore
     @State private var destination: Destination?
     @State private var tutorialVisible = true
+    @State private var showSaveProblem = false
     private let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
     var body: some View {
         VStack(spacing: 0) {
@@ -51,11 +52,16 @@ struct ContentView: View {
                 }
             }.tint(Theme.teal).presentationDragIndicator(.visible).presentationDetents([.large])
         }
-        .alert("Rack & Rich", isPresented: Binding(get: { store.message != nil }, set: { if !$0 { store.message = nil } })) { Button("Alles klar") { store.message = nil } } message: { Text(store.message ?? "") }
-        .alert("Spielstand braucht Aufmerksamkeit", isPresented: Binding(get: { store.saveProblem != nil }, set: { _ in })) {
-            Button("Sicherung wiederherstellen") { store.recoverBackup() }
-            Button("Einstellungen") { destination = .settings }
-        } message: { Text(store.saveProblem ?? "") }
+        .alert(showSaveProblem ? "Spielstand braucht Aufmerksamkeit" : "Rack & Rich", isPresented: Binding(
+            get: { store.message != nil || showSaveProblem },
+            set: { if !$0 { store.message = nil; showSaveProblem = false } }
+        )) {
+            if showSaveProblem {
+                Button("Sicherung wiederherstellen") { store.recoverBackup() }
+                Button("Einstellungen") { destination = .settings }
+            } else { Button("Alles klar") { store.message = nil } }
+        } message: { Text(showSaveProblem ? (store.saveProblem ?? "") : (store.message ?? "")) }
+        .onChange(of: store.saveProblem) { _, problem in showSaveProblem = problem != nil }
         .onReceive(timer) { _ in store.tick() }
         .task(id: store.game.tutorialDismissed) {
             tutorialVisible = true
@@ -77,7 +83,7 @@ struct ContentView: View {
                     Text(store.game.room.name).font(.subheadline.bold())
                     Text("Tag \(store.game.hour/24+1) · \(Int(store.game.reputation)) Rep").font(.caption2)
                 }
-                Button { destination = .settings } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("Einstellungen")
+                Button { destination = .settings } label: { Image(systemName: store.saveProblem == nil ? "gearshape" : "exclamationmark.triangle").frame(width: 44, height: 44) }.accessibilityLabel("Einstellungen")
             }
             HStack(spacing: 10) {
                 gauge("CPU", use: store.game.usage.cpu, max: store.game.capacity.cpu)
