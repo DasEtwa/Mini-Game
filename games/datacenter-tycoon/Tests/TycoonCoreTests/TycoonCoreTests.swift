@@ -168,6 +168,8 @@ final class TycoonCoreTests: XCTestCase {
         XCTAssertEqual(g.room.racks,4);XCTAssertFalse(g.milestoneCompleted)
         Simulation.advance(hours:24,state:&g)
         XCTAssertTrue(g.milestoneCompleted)
+        Simulation.advance(hours:24,state:&g)
+        XCTAssertEqual(g.garageOperatingHours,24)
         XCTAssertThrowsError(try ShopSystem.moveToGarage(&g))
     }
     func testGarageRequirementsIndependently() throws {

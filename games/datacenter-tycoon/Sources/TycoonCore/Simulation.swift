@@ -130,9 +130,14 @@ public enum Simulation {
                 state.history = Array(state.history.suffix(90))
             }
             if state.hour % 720 == 0 { EconomySystem.closeMonth(&state) }
-            if state.location == .garage && state.customers.contains(where: { ResourceSystem.quality(for: $0, in: state) >= $0.uptimeExpectation }) {
-                state.garageOperatingHours += 1
-                if state.garageOperatingHours >= 24 && !state.milestoneCompleted {
+            if state.location == .garage && !state.milestoneCompleted {
+                let current = ResourceSystem.hostQualities(in: state)
+                let hosting = state.customers.contains { customer in
+                    let quality = customer.serverID.flatMap { current[$0] } ?? 0
+                    return quality >= customer.uptimeExpectation
+                }
+                if hosting { state.garageOperatingHours += 1 }
+                if state.garageOperatingHours >= 24 {
                     state.milestoneCompleted = true
                     state.log("Milestone 1 geschafft! Ein voller Tag Hosting in deiner Garage. Vier Racks passen hier rein. Nur so als Idee.")
                 }
