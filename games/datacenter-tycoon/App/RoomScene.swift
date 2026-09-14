@@ -47,7 +47,7 @@ struct RoomScene: View, Equatable {
                 ForEach(game.racks.count..<(garage ? 4 : 2),id:\.self) { index in
                     Button(action: freeRack) { RoundedRectangle(cornerRadius:5).stroke(Theme.ink.opacity(0.17),style:StrokeStyle(lineWidth:1.5,dash:[4,4]))
                         .frame(width:w*0.17,height:44)
-                        .overlay(Text("STELLPLATZ").font(.system(size:7,weight:.medium,design:.monospaced)).foregroundStyle(Theme.ink.opacity(0.4)))
+                        .overlay(Label("Rack", systemImage: "plus").font(.system(size:11,weight:.bold,design:.monospaced)).foregroundStyle(Theme.teal))
                         }.buttonStyle(.plain).accessibilityLabel("Freien Rackplatz ausbauen").accessibilityIdentifier("free-rack-\(index)")
                         .position(x:rackX(index,w:w),y:(401)*scale)
                 }
