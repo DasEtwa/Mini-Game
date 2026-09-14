@@ -1,7 +1,7 @@
 import Foundation
 import TycoonCore
 
-// Deterministic, feasible active strategy: act once per game day (12 real seconds).
+// Deterministic, feasible active strategy: act once per game day (18 real seconds).
 func play(seed: UInt64) -> (minutes: Double, state: GameState) {
     var g = GameState(seed: seed)
     for _ in 0..<600 {

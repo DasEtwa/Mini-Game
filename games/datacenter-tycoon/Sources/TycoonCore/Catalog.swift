@@ -53,7 +53,7 @@ public struct CustomerType: Identifiable {
 }
 public enum Balance {
     public static let startCash = 5_000.0
-    public static let secondsPerDay = 12.0
+    public static let secondsPerDay = 18.0
     public static let daysPerMonth = 30.0
     public static let electricity = 0.30
     public static let garagePrice = 18_000.0
