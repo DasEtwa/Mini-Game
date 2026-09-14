@@ -46,6 +46,22 @@ public enum Region: String, Codable, CaseIterable, Sendable {
     public var offset: Int { switch self { case .europe: return 1; case .usa: return -7; case .asia: return 8 } }
 }
 public enum Activity: String, Sendable { case idle = "Idle", normal = "Normal", busy = "Busy", peak = "Peak" }
+public struct CustomerContract: Codable, Equatable, Sendable {
+    public var months: Int
+    public var startedHour: Int
+    public var endHour: Int
+    public var priceFactor: Double
+    public var serviceHours: Int = 0
+    public var qualitySum: Double = 0
+    public var poorHours: Int = 0
+    public var renewals: Int = 0
+    public init(months: Int, hour: Int, priceFactor: Double = 1) {
+        self.months = months; startedHour = hour; endHour = hour + months * 720
+        self.priceFactor = priceFactor
+    }
+    public var quality: Double { serviceHours > 0 ? qualitySum / Double(serviceHours) : 1 }
+    public func daysRemaining(hour: Int) -> Int { max(0, (endHour - hour + 23) / 24) }
+}
 public struct Customer: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var name: String
@@ -59,6 +75,7 @@ public struct Customer: Identifiable, Codable, Equatable, Sendable {
     public var satisfaction: Double = 100
     public var expiresHour: Int
     public var burstMinutesUsed: Double = 0
+    public var contract: CustomerContract? = nil
     public func activity(hour: Int) -> Activity {
         let local = ((hour + region.offset + phase) % 24 + 24) % 24
         let peak = Catalog.customers.first { $0.id == typeID }?.peakHour ?? 18
@@ -101,7 +118,7 @@ public struct GameEvent: Identifiable, Codable, Equatable, Sendable {
     public var text: String
 }
 public struct GameState: Codable, Equatable, Sendable {
-    public var saveVersion = 1
+    public var saveVersion = 2
     public var cash = Balance.startCash
     public var hour = 0
     public var location: LocationID = .bedroom
@@ -110,6 +127,7 @@ public struct GameState: Codable, Equatable, Sendable {
     public var requests: [Customer] = []
     public var reputation = 50.0
     public var internetID = "basic"
+    public var powerID = "family"
     public var coolingLevel = 0
     public var priceFactor = 1.0
     public var ledger: [LedgerEntry] = []
@@ -130,6 +148,7 @@ public struct GameState: Codable, Equatable, Sendable {
     public var lastSavedAt: Date = Date()
     public var offlineRemainder = 0.0
     public var rescueUsed = false
+    public var lastRecoveryHour: Int? = nil
     public init(seed: UInt64 = 42) {
         randomSeed = seed
         requests = [Customer(name: "BlockBuilder21", typeID: "tiny", booked: Catalog.customers[0].resources,
@@ -140,8 +159,18 @@ public struct GameState: Codable, Equatable, Sendable {
     public var plan: InternetPlan { Catalog.plan(internetID) }
     public var cooling: Double { room.cooling + Double(coolingLevel) * (location == .bedroom ? 200 : 600) }
     public var monthlyRevenue: Double { customers.reduce(0) { $0+$1.monthlyPrice } }
-    public var watts: Double { racks.reduce(0) { $0+$1.watts } + Double(coolingLevel)*35 }
-    public var monthlyPowerCost: Double { watts/1000*24*30*Balance.electricity }
+    public var watts: Double { servers.reduce(0) { $0+serverWatts($1) } + Double(coolingLevel)*35 }
+    public var powerPlan: PowerPlan { Catalog.powerPlans.first { $0.id == powerID }! }
+    public var powerLimit: Double { min(room.power, powerPlan.watts) }
+    // Reserve peak capacity when starting hardware; bills use actual load instead.
+    public var reservedWatts: Double { racks.reduce(0) { $0+$1.watts } + Double(coolingLevel)*35 }
+    public func serverWatts(_ server: Server) -> Double {
+        guard server.online else { return 0 }
+        let cpu = customers.filter { $0.serverID == server.id }.reduce(0) { $0+$1.usage(hour: hour).cpu }
+        let load = min(1, cpu / max(1, server.capacity.cpu))
+        return server.watts * (0.35 + 0.65 * load)
+    }
+    public var monthlyPowerCost: Double { watts/1000*24*30*powerPlan.kWh + powerPlan.monthly }
     public var monthlyCosts: Double { monthlyPowerCost + plan.monthly + room.rent }
     public var monthlyProfit: Double { monthlyRevenue-monthlyCosts }
     public var capacity: Resources {

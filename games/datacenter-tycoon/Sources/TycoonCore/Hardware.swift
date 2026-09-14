@@ -20,9 +20,10 @@ public enum HardwareSystem {
     }
     public static func validateRoom(_ state: GameState) throws {
         guard state.racks.count <= state.room.racks else { throw GameError.rule("Kein Platz für ein weiteres Rack.") }
-        guard state.watts <= state.room.power else { throw GameError.rule("Stromlimit erreicht. Schalte ein System aus.") }
+        guard state.reservedWatts <= state.powerLimit else { throw GameError.rule("Stromvertrag ausgelastet. Im Laptop unter Strom aufrüsten oder ein System ausschalten.") }
         for rack in state.racks {
             let spec = Catalog.rack(rack.specID)
+            guard !spec.garageOnly || state.location == .garage else { throw GameError.rule("Dieses Rack benötigt die Garage.") }
             guard rack.servers.count <= spec.slots, rack.watts <= spec.watts else { throw GameError.rule("Rack-Slots oder Rack-Stromlimit erreicht.") }
         }
     }
@@ -121,6 +122,15 @@ public enum ShopSystem {
         try charge(plan.setup, label: "Internet: \(plan.name)", state: &state)
         state.internetID = id
     }
+    public static func power(_ id: String, in state: inout GameState) throws {
+        guard let plan = Catalog.powerPlans.first(where: { $0.id == id }), id != state.powerID else { throw GameError.rule("Stromtarif bereits aktiv oder unbekannt.") }
+        guard !plan.garageOnly || state.location == .garage else { throw GameError.rule("Benötigt: Garage.") }
+        var next = state
+        next.powerID = id
+        try HardwareSystem.validateRoom(next)
+        try charge(plan.setup, label: "Stromanschluss: \(plan.name)", state: &next)
+        state = next
+    }
     public static func cooling(in state: inout GameState) throws {
         guard state.coolingLevel < 3 else { throw GameError.rule("Kühlung bereits vollständig ausgebaut.") }
         var next = state
@@ -135,6 +145,12 @@ public enum ShopSystem {
         state.record(-Balance.garagePrice, "Garage eingerichtet")
         state.location = .garage
         state.log("Die Garage gehört jetzt deinen Servern. Das Auto muss draußen schlafen.")
+    }
+    public static func sideJob(_ state: inout GameState) throws {
+        guard state.cash < 500, state.hour - (state.lastRecoveryHour ?? -720) >= 720 else { throw GameError.rule("Nachbarschafts-IT: bei weniger als 500 € einmal pro Spielmonat verfügbar.") }
+        state.lastRecoveryHour = state.hour
+        state.record(600, "Nebenjob: PCs der Nachbarn repariert")
+        state.log("600 € vom Nebenjob. Damit kannst du dein Hosting wieder auf Kurs bringen.")
     }
     public static func rescue(_ state: inout GameState) throws {
         guard state.cash < 500, !state.rescueUsed else { throw GameError.rule("Familienhilfe: einmalig bei weniger als 500 € verfügbar.") }

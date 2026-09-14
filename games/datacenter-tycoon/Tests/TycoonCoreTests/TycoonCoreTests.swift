@@ -7,7 +7,7 @@ final class TycoonCoreTests: XCTestCase {
     }
     func testStartState() throws {
         let g = GameState()
-        XCTAssertEqual(g.cash,5000); XCTAssertEqual(g.customers.count,0)
+        XCTAssertEqual(g.cash,Balance.startCash); XCTAssertEqual(g.customers.count,0)
         XCTAssertEqual(g.capacity,.init(cpu:4,ram:8,storage:250,network:1000))
         XCTAssertEqual(g.plan.down,100); XCTAssertEqual(g.plan.up,50)
         try SaveStore.validate(g)
@@ -39,11 +39,11 @@ final class TycoonCoreTests: XCTestCase {
         var g = try acceptedGame()
         for _ in 0..<720 { EconomySystem.accrueHour(&g) }
         XCTAssertEqual(g.earnedThisMonth,7,accuracy:0.001)
-        XCTAssertEqual(g.electricityThisMonth,131.0/1000*720*0.3,accuracy:0.001)
+        XCTAssertEqual(g.electricityThisMonth,g.watts/1000*720*0.34,accuracy:0.001)
         XCTAssertEqual(g.fixedCostsThisMonth,435,accuracy:0.001)
         g.hour = 720
         EconomySystem.closeMonth(&g)
-        let expectedCash = 4972.0 - (131.0 / 1000.0 * 720.0 * 0.3)
+        let expectedCash = Balance.startCash - 28 - (g.watts / 1000 * 720 * 0.34)
         XCTAssertEqual(g.cash,expectedCash,accuracy:0.001)
         XCTAssertEqual(g.earnedThisMonth,0)
         XCTAssertEqual(g.lifetimeRevenue,7,accuracy:0.001)
@@ -56,7 +56,7 @@ final class TycoonCoreTests: XCTestCase {
     func testSubsidyStopsAfterThreeMonths() {
         var g = GameState(); g.hour = 2880
         EconomySystem.closeMonth(&g)
-        XCTAssertEqual(g.cash,5000)
+        XCTAssertEqual(g.cash,Balance.startCash)
     }
     func testInternetFeesProrate() throws {
         var g = GameState()
@@ -64,14 +64,14 @@ final class TycoonCoreTests: XCTestCase {
         try ShopSystem.internet("plus",in:&g)
         for _ in 0..<360 { EconomySystem.accrueHour(&g) }
         XCTAssertEqual(g.fixedCostsThisMonth,445,accuracy:0.001)
-        XCTAssertEqual(g.cash,4850)
+        XCTAssertEqual(g.cash,Balance.startCash-150)
     }
     func testCPUPurchaseChangesOnlyTargetServer() throws {
         var g = GameState(); try ShopSystem.buyServer(in:g.racks[0].id,state:&g)
         let other = g.servers[1]
         try ShopSystem.replace(serverID:g.servers[0].id,partID:"cpu-home",in:&g)
         XCTAssertEqual(g.servers[0].capacity.cpu,12); XCTAssertEqual(g.servers[1],other)
-        XCTAssertEqual(g.cash,3850)
+        XCTAssertEqual(g.cash,Balance.startCash-1150)
     }
     func testIncompatibleHardwarePurchaseIsAtomic() {
         var g = GameState(); let before = g
@@ -90,7 +90,7 @@ final class TycoonCoreTests: XCTestCase {
         XCTAssertEqual(g,before)
     }
     func testPlatformMigrationIsCompatible() throws {
-        var g = GameState(); try ShopSystem.modernize(g.servers[0].id,in:&g)
+        var g = GameState(); g.cash = 5000; try ShopSystem.modernize(g.servers[0].id,in:&g)
         XCTAssertEqual(g.capacity.cpu,24); XCTAssertEqual(g.capacity.ram,64)
         XCTAssertEqual(g.cash,2890); try HardwareSystem.validate(g.servers[0])
     }
@@ -112,9 +112,9 @@ final class TycoonCoreTests: XCTestCase {
         XCTAssertEqual(g.racks.count,2)
     }
     func testPowerLimitPreventsStartup() throws {
-        var g = GameState(); g.racks=[Rack(specID:"medium",servers:Array(repeating:Server(),count:4)),Rack(servers:[Server(),Server()])]
+        var g = GameState(); g.racks=[Rack(servers:[Server(),Server()]),Rack(servers:[Server(),Server()])]
         for r in g.racks.indices { for s in g.racks[r].servers.indices { g.racks[r].servers[s].id=UUID();g.racks[r].servers[s].isOn=false } }
-        for server in g.servers.prefix(5) { try ShopSystem.toggle(server.id,in:&g) }
+        for server in g.servers.prefix(2) { try ShopSystem.toggle(server.id,in:&g) }
         let before=g
         XCTAssertThrowsError(try ShopSystem.toggle(g.servers.last!.id,in:&g))
         XCTAssertEqual(g,before)
@@ -146,7 +146,13 @@ final class TycoonCoreTests: XCTestCase {
     func testHeatThrottles() throws {
         var g = try acceptedGame()
         g.customers[0].booked.cpu=4;g.hour=18
-        g.racks[0].servers.append(Server());g.racks[0].servers.append(Server())
+        g.racks[0].servers.append(Server())
+        var other = g.customers[0]; other.id = UUID(); other.serverID = g.servers[1].id
+        g.customers.append(other)
+        g.coolingLevel = 0
+        // A fully loaded rack with high-power CPUs exceeds its own cooling limit.
+        for i in g.racks[0].servers.indices { g.racks[0].servers[i].cpu = "cpu-max" }
+        for i in g.customers.indices { g.customers[i].booked.cpu = 48 }
         XCTAssertLessThan(ResourceSystem.quality(for:g.customers[0],in:g),1)
     }
     func testOfflineHostDoesNotConsumeSharedUploadOrEraseReservedStorage() throws {
@@ -166,7 +172,7 @@ final class TycoonCoreTests: XCTestCase {
     func testRepairRestoresHostAndCharges() throws {
         var g = GameState();g.racks[0].servers[0].fault="HDD defekt"
         try ShopSystem.repair(g.servers[0].id,in:&g)
-        XCTAssertTrue(g.servers[0].online);XCTAssertEqual(g.cash,4880)
+        XCTAssertTrue(g.servers[0].online);XCTAssertEqual(g.cash,Balance.startCash-120)
         XCTAssertThrowsError(try ShopSystem.repair(g.servers[0].id,in:&g))
     }
     func testGarageAllRequirementsAndPlay() throws {
@@ -209,9 +215,9 @@ final class TycoonCoreTests: XCTestCase {
         XCTAssertEqual(try SaveStore.load(from:url.appendingPathExtension("backup")),old)
     }
     func testInvalidSaveAndFutureVersionRejected() throws {
-        var g=GameState();g.saveVersion=2
+        var g=GameState();g.saveVersion=3
         XCTAssertThrowsError(try SaveStore.encode(g))
-        XCTAssertThrowsError(try SaveStore.decode(Data("{\"saveVersion\":2}".utf8)))
+        XCTAssertThrowsError(try SaveStore.decode(Data("{\"saveVersion\":3}".utf8)))
         g=GameState();g.racks[0].servers[0].cpu="missing"
         XCTAssertThrowsError(try SaveStore.encode(g))
         g=GameState();g.cash = .nan

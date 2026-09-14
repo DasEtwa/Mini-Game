@@ -35,6 +35,15 @@ public struct InternetPlan: Identifiable, Codable, Sendable {
     public let setup: Double
     public let garageOnly: Bool
 }
+public struct PowerPlan: Identifiable, Codable, Sendable {
+    public let id: String
+    public let name: String
+    public let watts: Double
+    public let kWh: Double
+    public let monthly: Double
+    public let setup: Double
+    public let garageOnly: Bool
+}
 public struct LocationSpec: Sendable {
     public let name: String
     public let racks: Int
@@ -52,7 +61,7 @@ public struct CustomerType: Identifiable, Sendable {
     public let uptime: Double
 }
 public enum Balance {
-    public static let startCash = 5_000.0
+    public static let startCash = 1_900.0
     public static let secondsPerDay = 18.0
     public static let daysPerMonth = 30.0
     public static let electricity = 0.30
@@ -87,8 +96,14 @@ public enum Catalog {
     ]
     public static let racks = [
         RackSpec(id: "home", name: "Home Rack", slots: 2, price: 350, watts: 500, cooling: 420, garageOnly: false),
-        RackSpec(id: "medium", name: "Studio Rack", slots: 4, price: 1100, watts: 1000, cooling: 900, garageOnly: false),
+        RackSpec(id: "medium", name: "Studio Rack", slots: 4, price: 1100, watts: 1000, cooling: 900, garageOnly: true),
         RackSpec(id: "garage", name: "Garage Rack", slots: 6, price: 1800, watts: 2200, cooling: 1800, garageOnly: true)
+    ]
+    public static let powerPlans = [
+        PowerPlan(id: "family", name: "Familienstrom", watts: 350, kWh: 0.34, monthly: 0, setup: 0, garageOnly: false),
+        PowerPlan(id: "home", name: "Home Power Plus", watts: 700, kWh: 0.30, monthly: 18, setup: 280, garageOnly: false),
+        PowerPlan(id: "home-max", name: "Home Power Max", watts: 1200, kWh: 0.28, monthly: 40, setup: 550, garageOnly: false),
+        PowerPlan(id: "business", name: "Garage Energy", watts: 3200, kWh: 0.24, monthly: 85, setup: 750, garageOnly: true)
     ]
     public static let internet = [
         InternetPlan(id: "basic", name: "Familien-WLAN", down: 100, up: 50, monthly: 35, setup: 0, garageOnly: false),
@@ -98,19 +113,19 @@ public enum Catalog {
     ]
     public static func location(_ id: LocationID) -> LocationSpec {
         switch id {
-        case .bedroom: return LocationSpec(name: "Kinderzimmer", racks: 2, power: 700, cooling: 350, rent: 400)
+        case .bedroom: return LocationSpec(name: "Kinderzimmer", racks: 2, power: 1200, cooling: 350, rent: 400)
         case .garage: return LocationSpec(name: "Garage", racks: 4, power: 3200, cooling: 1800, rent: 700)
         }
     }
     public static let customers: [CustomerType] = [
         .init(id: "tiny", name: "BlockBuilder", resources: .init(cpu: 1, ram: 1, storage: 15, network: 2), price: 7, minReputation: 0, peakHour: 19, uptime: 0.90),
         .init(id: "game", name: "PixelParty", resources: .init(cpu: 2, ram: 4, storage: 30, network: 4), price: 28, minReputation: 0, peakHour: 21, uptime: 0.92),
-        .init(id: "web", name: "KeksBlog", resources: .init(cpu: 1, ram: 2, storage: 20, network: 3), price: 90, minReputation: 0, peakHour: 13, uptime: 0.94),
-        .init(id: "dev", name: "DeployDuck", resources: .init(cpu: 3, ram: 4, storage: 45, network: 4), price: 160, minReputation: 50, peakHour: 14, uptime: 0.93),
-        .init(id: "shop", name: "Sockenshop", resources: .init(cpu: 2, ram: 3, storage: 35, network: 5), price: 250, minReputation: 53, peakHour: 17, uptime: 0.96),
-        .init(id: "agency", name: "Studio Wolke", resources: .init(cpu: 3, ram: 5, storage: 80, network: 7), price: 420, minReputation: 58, peakHour: 11, uptime: 0.97),
-        .init(id: "build", name: "Compile Club", resources: .init(cpu: 5, ram: 8, storage: 100, network: 6), price: 600, minReputation: 65, peakHour: 16, uptime: 0.95),
-        .init(id: "team", name: "Remote Raccoons", resources: .init(cpu: 4, ram: 6, storage: 120, network: 8), price: 720, minReputation: 72, peakHour: 10, uptime: 0.98)
+        .init(id: "web", name: "KeksBlog", resources: .init(cpu: 1, ram: 2, storage: 20, network: 3), price: 24, minReputation: 0, peakHour: 13, uptime: 0.94),
+        .init(id: "dev", name: "DeployDuck", resources: .init(cpu: 3, ram: 4, storage: 45, network: 4), price: 80, minReputation: 54, peakHour: 14, uptime: 0.93),
+        .init(id: "shop", name: "Sockenshop", resources: .init(cpu: 2, ram: 3, storage: 35, network: 5), price: 160, minReputation: 60, peakHour: 17, uptime: 0.96),
+        .init(id: "agency", name: "Studio Wolke", resources: .init(cpu: 3, ram: 5, storage: 80, network: 7), price: 300, minReputation: 66, peakHour: 11, uptime: 0.97),
+        .init(id: "build", name: "Compile Club", resources: .init(cpu: 5, ram: 8, storage: 100, network: 6), price: 440, minReputation: 72, peakHour: 16, uptime: 0.95),
+        .init(id: "team", name: "Remote Raccoons", resources: .init(cpu: 4, ram: 6, storage: 120, network: 8), price: 540, minReputation: 78, peakHour: 10, uptime: 0.98)
     ]
     // IDs in save files are validated before these lookups are used.
     public static func part(_ id: String) -> Part { parts.first { $0.id == id }! }
