@@ -29,7 +29,7 @@ struct RackView: View {
                 if rack.servers.count < spec.slots {
                     Panel {
                         Text("Noch Platz für eine Blechkiste.").font(.headline)
-                        Text("Gebrauchtserver: FX 8400, 16 GB RAM, 250 GB HDD. Vollständig zusammengebaut. 146 W.").font(.caption)
+                        Text("Gebrauchtserver: FX 8400, 16 GB RAM, 250 GB HDD. Vollständig zusammengebaut. 142 W.").font(.caption)
                         ActionButton(title:"Server einbauen · 700 €",icon:"plus") { store.act { try ShopSystem.buyServer(in:rackID,state:&$0) } }
                     }
                 }
@@ -48,7 +48,7 @@ struct ServerView: View {
         Page {
             if let server = server {
                 let booked = HardwareSystem.booked(on:server.id,in:store.game)
-                let use = store.game.customers.filter { $0.serverID == server.id }.reduce(Resources()) { $0+$1.usage(hour:store.game.hour) }
+                let use = server.online ? store.game.customers.filter { $0.serverID == server.id }.reduce(Resources()) { $0+$1.usage(hour:store.game.hour) } : Resources(storage:booked.storage)
                 Panel {
                     Text(server.name).font(.title2.bold())
                     if let fault = server.fault { Label(fault,systemImage:"exclamationmark.triangle.fill").foregroundStyle(Theme.orange); ActionButton(title:"Reparieren · 120 €",icon:"wrench") { store.act { try ShopSystem.repair(serverID,in:&$0) } } }

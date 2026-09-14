@@ -38,7 +38,9 @@ public enum ResourceSystem {
     public static func hostQualities(in state: GameState) -> [UUID: Double] {
         var load: [UUID: Resources] = [:]
         var network = 0.0
+        let online = Set(state.servers.filter(\.online).map(\.id))
         for customer in state.customers {
+            guard let host = customer.serverID, online.contains(host) else { continue }
             let use = customer.usage(hour: state.hour)
             network += use.network
             if let id = customer.serverID { load[id, default: Resources()] = load[id, default: Resources()] + use }

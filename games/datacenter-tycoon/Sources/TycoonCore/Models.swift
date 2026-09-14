@@ -144,8 +144,18 @@ public struct GameState: Codable, Equatable, Sendable {
     public var monthlyPowerCost: Double { watts/1000*24*30*Balance.electricity }
     public var monthlyCosts: Double { monthlyPowerCost + plan.monthly + room.rent }
     public var monthlyProfit: Double { monthlyRevenue-monthlyCosts }
-    public var capacity: Resources { servers.filter(\.online).reduce(Resources()) { $0+$1.capacity } }
-    public var usage: Resources { customers.reduce(Resources()) { $0+$1.usage(hour: hour) } }
+    public var capacity: Resources {
+        servers.reduce(Resources()) { total, server in
+            total + (server.online ? server.capacity : Resources(storage: server.capacity.storage))
+        }
+    }
+    public var usage: Resources {
+        let online = Set(servers.filter(\.online).map(\.id))
+        return customers.reduce(Resources()) { total, customer in
+            let running = customer.serverID.map { online.contains($0) } ?? false
+            return total + (running ? customer.usage(hour: hour) : Resources(storage: customer.booked.storage))
+        }
+    }
     public var garageEligible: Bool {
         location == .bedroom && cash >= Balance.garagePrice && customers.count >= Balance.garageCustomers && monthlyRevenue >= Balance.garageRevenue && reputation >= Balance.garageReputation
     }

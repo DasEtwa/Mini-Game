@@ -149,6 +149,20 @@ final class TycoonCoreTests: XCTestCase {
         g.racks[0].servers.append(Server());g.racks[0].servers.append(Server())
         XCTAssertLessThan(ResourceSystem.quality(for:g.customers[0],in:g),1)
     }
+    func testOfflineHostDoesNotConsumeSharedUploadOrEraseReservedStorage() throws {
+        var g = try acceptedGame()
+        try ShopSystem.buyServer(in: g.racks[0].id, state: &g)
+        var healthy = g.customers[0]
+        healthy.id = UUID(); healthy.serverID = g.servers[1].id
+        g.customers[0].booked.network = 1000
+        g.customers.append(healthy)
+        try ShopSystem.toggle(g.servers[0].id, in: &g)
+        XCTAssertEqual(g.usage.network, healthy.usage(hour:g.hour).network)
+        XCTAssertEqual(g.usage.cpu, healthy.usage(hour:g.hour).cpu)
+        XCTAssertEqual(g.usage.storage, 30)
+        XCTAssertEqual(g.capacity.storage, 500)
+        XCTAssertEqual(ResourceSystem.quality(for:healthy,in:g), 1)
+    }
     func testRepairRestoresHostAndCharges() throws {
         var g = GameState();g.racks[0].servers[0].fault="HDD defekt"
         try ShopSystem.repair(g.servers[0].id,in:&g)
