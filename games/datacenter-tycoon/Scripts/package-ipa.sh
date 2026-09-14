@@ -9,4 +9,4 @@ mkdir -p build/ipa/Payload
 cp -R build/RackAndRich.xcarchive/Products/Applications/RackAndRich.app build/ipa/Payload/
 (cd build/ipa && zip -qry ../RackAndRich.ipa Payload)
 python3 Scripts/validate-ipa.py build/RackAndRich.ipa
-shasum -a 256 build/RackAndRich.ipa > build/RackAndRich.ipa.sha256
+(cd build && shasum -a 256 RackAndRich.ipa > RackAndRich.ipa.sha256)

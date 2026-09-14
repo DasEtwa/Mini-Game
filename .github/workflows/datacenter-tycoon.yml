@@ -35,15 +35,20 @@ jobs:
       - name: iPhone simulator tests
         run: |
           mkdir -p build
-          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for a in d["devices"].values() for x in a if "iPhone" in x["name"]))')
-          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
-          xcodebuild -project RackAndRich.xcodeproj -scheme RackAndRich -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath build/Tests.xcresult CODE_SIGNING_ALLOWED=NO test > build/tests.log 2>&1 || { tail -120 build/tests.log; exit 1; }
+          xcrun simctl list devices available -j | python3 Scripts/select-simulators.py > build/devices.txt
+          index=0
+          while IFS= read -r device_id; do
+            index=$((index + 1))
+            xcodebuild -project RackAndRich.xcodeproj -scheme RackAndRich -destination "platform=iOS Simulator,id=$device_id" -derivedDataPath build/DerivedData -resultBundlePath "build/Tests-$index.xcresult" CODE_SIGNING_ALLOWED=NO test > "build/tests-$index.log" 2>&1 || { tail -120 "build/tests-$index.log"; exit 1; }
+          done < build/devices.txt
       - name: Simulator screenshots
         if: always()
         run: |
-          if [ -d build/Tests.xcresult ]; then
-            xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots || true
-          fi
+          for result in build/Tests*.xcresult; do
+            if [ -d "$result" ]; then
+              xcrun xcresulttool export attachments --path "$result" --output-path "build/screenshots/$(basename "$result")" || true
+            fi
+          done
       - name: Archive and package unsigned SideStore IPA
         run: bash Scripts/package-ipa.sh
       - name: Upload IPA
@@ -61,7 +66,7 @@ jobs:
           name: RackAndRich-test-evidence
           path: |
             games/datacenter-tycoon/build/*.log
-            games/datacenter-tycoon/build/Tests.xcresult
+            games/datacenter-tycoon/build/Tests*.xcresult
             games/datacenter-tycoon/build/screenshots
             games/datacenter-tycoon/balance-results.txt
           retention-days: 14

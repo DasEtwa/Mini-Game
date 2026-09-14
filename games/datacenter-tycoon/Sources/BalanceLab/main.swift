@@ -38,5 +38,5 @@ func play(seed: UInt64) -> (minutes: Double, state: GameState) {
 for seed: UInt64 in [1, 7, 42, 123, 999] {
     let result = play(seed: seed)
     print("seed=\(seed) minutes=\(result.minutes) garage=\(result.state.milestoneCompleted) cash=\(Int(result.state.cash)) clients=\(result.state.customers.count) MRR=\(Int(result.state.monthlyRevenue)) rep=\(Int(result.state.reputation)) servers=\(result.state.servers.count)")
-    if !result.state.milestoneCompleted { exit(1) }
+    if !result.state.milestoneCompleted || !(30...90).contains(result.minutes) { exit(1) }
 }

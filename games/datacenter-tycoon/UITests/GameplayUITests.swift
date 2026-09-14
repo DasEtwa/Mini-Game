@@ -28,6 +28,21 @@ final class GameplayUITests: XCTestCase {
         snapshot("04-garage-goal")
         XCTAssertTrue(app.staticTexts["Garagenschlüssel verdienen"].exists)
     }
+    @MainActor func testGarageFourRacksAndHardware() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-testing", "--garage-ui-testing"]
+        app.launch()
+        XCTAssertTrue(app.buttons["rack-3"].waitForExistence(timeout:15))
+        snapshot("05-garage-four-racks")
+        app.buttons["rack-3"].tap()
+        XCTAssertTrue(app.staticTexts["Garage Rack"].waitForExistence(timeout:5))
+        snapshot("06-garage-rack")
+        app.buttons["close-sheet"].tap()
+        app.buttons["laptop"].tap()
+        app.buttons["Dashboard"].tap()
+        snapshot("07-garage-dashboard")
+        XCTAssertTrue(app.staticTexts["Live-Ressourcen"].exists)
+    }
     @MainActor private func snapshot(_ name:String) {
         let attachment = XCTAttachment(screenshot:XCUIApplication().screenshot())
         attachment.name = name

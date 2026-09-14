@@ -13,6 +13,7 @@ import AVFoundation
     private var remainder = 0.0
     private var ticks = 0
     private var active = false
+    private var loadGeneration = 0
     private var player: AVAudioPlayer?
     private let saveURL: URL
     init() {
@@ -33,6 +34,8 @@ import AVFoundation
     func activate() {
         guard !active else { return }
         active = true; loading = true
+        loadGeneration += 1
+        let generation = loadGeneration
         let url = saveURL
         Task {
             do {
@@ -48,18 +51,25 @@ import AVFoundation
                     } else if FileManager.default.fileExists(atPath: url.appendingPathExtension("backup").path) {
                         state = try SaveStore.load(from: url.appendingPathExtension("backup")); recovered = true
                     } else { state = GameState() }
+                    #if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("--garage-ui-testing") { state = try UITestFixtures.garage() }
+                    #endif
                     let hours = SaveStore.offline(&state, now: Date())
                     return (state, hours, recovered)
                 }.value
+                guard generation == loadGeneration, active else { return }
                 game = result.0
                 if result.1 >= 24 { message = "Willkommen zurück! \(result.1/24) Spieltage wurden offline simuliert. Einnahmen werden zum Monatsende ausgezahlt." }
                 if result.2 { message = "Sicherung wiederhergestellt." }
                 loading = false; lastTick = ProcessInfo.processInfo.systemUptime
                 save()
-            } catch { saveProblem = error.localizedDescription; loading = false }
+            } catch {
+                guard generation == loadGeneration, active else { return }
+                saveProblem = error.localizedDescription; loading = false
+            }
         }
     }
-    func deactivate() { active = false; if !loading { save() }; lastTick = ProcessInfo.processInfo.systemUptime }
+    func deactivate() { active = false; loadGeneration += 1; if !loading { save() }; lastTick = ProcessInfo.processInfo.systemUptime }
     func tick() {
         let now = ProcessInfo.processInfo.systemUptime
         let delta = min(2, max(0, now-lastTick)); lastTick = now
@@ -120,3 +130,26 @@ import AVFoundation
         player = try? AVAudioPlayer(data: data); player?.play()
     }
 }
+
+#if DEBUG
+private enum UITestFixtures {
+    static func garage() throws -> GameState {
+        var state = GameState()
+        state.cash = 40_000; state.reputation = 60; state.tutorialDismissed = true
+        let template = state.requests[0]
+        state.requests = []
+        state.customers = (0..<12).map { index in
+            var customer = template
+            customer.id = UUID(); customer.name = "GarageTest\(index)"
+            customer.booked = .init(cpu: 0.1, ram: 0.1, storage: 1, network: 0.1)
+            customer.monthlyPrice = 250; customer.serverID = state.servers[0].id
+            return customer
+        }
+        try ShopSystem.moveToGarage(&state)
+        for _ in 0..<3 { try ShopSystem.buyRack("garage", in: &state) }
+        for rack in state.racks.dropFirst() { try ShopSystem.buyServer(in: rack.id, state: &state) }
+        Simulation.advance(hours: 24, state: &state)
+        return state
+    }
+}
+#endif
