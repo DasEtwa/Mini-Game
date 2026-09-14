@@ -17,7 +17,7 @@ struct CustomersView: View {
             }
             Picker("Kundenansicht",selection:$showActive) { Text("Anfragen (\(store.game.requests.count))").tag(false); Text("Aktiv (\(store.game.customers.count))").tag(true) }.pickerStyle(.segmented)
             if (showActive ? store.game.customers : store.game.requests).isEmpty {
-                ContentUnavailableView(showActive ? "Noch keine Kunden" : "Alles abgearbeitet",systemImage:"person.crop.circle.badge.clock",description:Text("Neue Anfragen kommen automatisch etwa alle 6–18 Sekunden bei normalem Tempo."))
+                ContentUnavailableView(showActive ? "Noch keine Kunden" : "Alles abgearbeitet",systemImage:"person.crop.circle.badge.clock",description:Text("Neue Anfragen kommen automatisch etwa alle 9–18 Sekunden bei normalem Tempo."))
             }
             ForEach(showActive ? store.game.customers : store.game.requests) { customer in
                 Panel {
