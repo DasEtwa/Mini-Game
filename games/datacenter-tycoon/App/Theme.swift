@@ -41,7 +41,7 @@ struct ActionButton: View {
     let title: String
     var icon = "arrow.right"
     let action: () -> Void
-    var body: some View { Button(action: action) { Label(title, systemImage: icon).font(.subheadline.bold()).frame(maxWidth: .infinity, minHeight: 34) }.buttonStyle(.borderedProminent).controlSize(.large) }
+    var body: some View { Button(action: action) { Label(title, systemImage: icon).foregroundStyle(.white).font(.subheadline.bold()).frame(maxWidth: .infinity, minHeight: 34) }.buttonStyle(.borderedProminent).controlSize(.large) }
 }
 struct StatLine: View {
     let label: String

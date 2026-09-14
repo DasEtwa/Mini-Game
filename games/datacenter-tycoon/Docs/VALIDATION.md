@@ -1,6 +1,6 @@
 # Validierung — v0.1.1
 
-Stand: 14. September 2026. Der Tag v0.1.0 bleibt unverändert. Dessen Release-Lauf scheiterte; ein neuer, vollständig geprüfter v0.1.1-Tag soll eigene Assets veröffentlichen.
+Stand: 14. September 2026. Der Tag v0.1.0 bleibt unverändert. Dessen Release-Lauf scheiterte; v0.1.1 erhält einen eigenen Tag mit einer Veröffentlichung erst nach erfolgreichem Build.
 
 ## Logik und Balancing
 
@@ -29,7 +29,13 @@ Bei aggressivem Spiel erfolgen erste Upgrades nach 3,3–6,9 Minuten; erste Zahl
 
 Die macOS-Pipeline baut mit vollständiger Concurrency-Prüfung und behandelt Swift-Warnungen als Fehler. Die zwei ersten Prüfungen fanden und beseitigten einen zu komplexen Sound-Ausdruck und eine fehlende nichtisolierte Equatable-Implementierung der SwiftUI-Raumansicht.
 
-Aktuell laufen die erneuten Simulator-/UI-/Archivprüfungen. Ein erfolgreicher IPA-/Release-Status wird erst nach ihrem Abschluss eingetragen.
+Ein weiterer UI-Lauf zeigte eine vererbte Accessibility-Kennung: Die übergeordnete Raumansicht setzte `room-scene` auch auf Laptop, Tür und Racks. Die App zeichnete den Raum korrekt, XCTest konnte die einzelnen Buttons dadurch jedoch nicht mehr über ihre IDs finden. Die unnötige Kennung am Container wurde entfernt; die gezielten Button-Assertions bleiben bestehen.
+
+[Vollständiger erfolgreicher Lauf](https://github.com/DasEtwa/Mini-Game/actions/runs/34874129847): 43 Core-Tests, 35 Balance-Szenarien, jeweils 43 Core- und 3 UI-Tests auf iPhone SE (3. Generation) und iPhone 16 Pro Max, Gerätearchiv, IPA-Prüfung und beide Artefakt-Uploads bestanden. Beide Simulatoren verwenden iOS 18.5; Xcode 16.4 / Apple Swift 6.1.2.
+
+Die heruntergeladene IPA wurde erneut auf ZIP-/Mach-O-/Bundle-Struktur und SHA-256 geprüft: Version 0.1.1, Build 2, iOS 17+. Die Raum-Screenshots im README stammen aus diesem erfolgreichen Lauf. Komponentenansicht, erreichbare Rack-Upgrades und Standorte wurden ebenfalls visuell kontrolliert. Dabei wurde eine geerbte dunkle Schrift auf grünen Kaufbuttons entdeckt und anschließend ausdrücklich auf Weiß gesetzt. Der abschließende Tag-Workflow prüft diese kleine Kontrastkorrektur vor der Release-Veröffentlichung erneut.
+
+Keine Swift-Compilerwarnungen. Xcodes übersprungene AppIntents-Metadatenextraktion ist erwartet: Das Spiel bietet keine AppIntents an.
 
 Die UI-Tests prüfen auf einem kleinen und großen iPhone:
 
