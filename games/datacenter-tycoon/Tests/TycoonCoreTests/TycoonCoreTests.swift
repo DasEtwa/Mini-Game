@@ -43,7 +43,8 @@ final class TycoonCoreTests: XCTestCase {
         XCTAssertEqual(g.fixedCostsThisMonth,435,accuracy:0.001)
         g.hour = 720
         EconomySystem.closeMonth(&g)
-        XCTAssertEqual(g.cash,5000+7-131.0/1000*720*0.3-435+400,accuracy:0.001)
+        let expectedCash = 4972.0 - (131.0 / 1000.0 * 720.0 * 0.3)
+        XCTAssertEqual(g.cash,expectedCash,accuracy:0.001)
         XCTAssertEqual(g.earnedThisMonth,0)
         XCTAssertEqual(g.lifetimeRevenue,7,accuracy:0.001)
     }

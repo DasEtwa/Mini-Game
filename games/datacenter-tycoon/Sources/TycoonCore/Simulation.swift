@@ -35,20 +35,39 @@ public enum CustomerSystem {
 }
 public enum ResourceSystem {
     public static func ratio(_ use: Double, _ capacity: Double) -> Double { capacity > 0 ? use/capacity : (use > 0 ? 2 : 0) }
+    public static func hostQualities(in state: GameState) -> [UUID: Double] {
+        var load: [UUID: Resources] = [:]
+        var network = 0.0
+        for customer in state.customers {
+            let use = customer.usage(hour: state.hour)
+            network += use.network
+            if let id = customer.serverID { load[id, default: Resources()] = load[id, default: Resources()] + use }
+        }
+        let roomHeat = max(1, state.watts/state.cooling)
+        let networkPressure = ratio(network, state.plan.up)
+        var qualities: [UUID: Double] = [:]
+        for rack in state.racks {
+            let throttle = 1/max(roomHeat, rack.watts/Catalog.rack(rack.specID).cooling)
+            for server in rack.servers {
+                guard server.online else { qualities[server.id] = 0; continue }
+                let use = load[server.id, default: Resources()]
+                let capacity = server.capacity
+                let pressure = max(1, ratio(use.cpu, capacity.cpu*throttle), ratio(use.ram, capacity.ram), networkPressure, ratio(use.network, capacity.network))
+                qualities[server.id] = 1/pressure
+            }
+        }
+        return qualities
+    }
     public static func quality(for customer: Customer, in state: GameState) -> Double {
-        guard let server = state.servers.first(where: { $0.id == customer.serverID }), server.online,
-              let rack = state.racks.first(where: { $0.servers.contains { $0.id == server.id } }) else { return 0 }
-        let use = state.customers.filter { $0.serverID == server.id }.reduce(Resources()) { $0+$1.usage(hour: state.hour) }
-        let heat = max(1, state.watts/state.cooling, rack.watts/Catalog.rack(rack.specID).cooling)
-        let throttle = min(1, 1/heat)
-        let pressure = max(1, ratio(use.cpu, server.capacity.cpu*throttle), ratio(use.ram, server.capacity.ram), ratio(state.usage.network, state.plan.up), ratio(use.network, server.capacity.network))
-        return max(0, 1/pressure)
+        guard let id = customer.serverID else { return 0 }
+        return hostQualities(in: state)[id] ?? 0
     }
 }
 public enum EconomySystem {
-    public static func accrueHour(_ state: inout GameState) {
+    public static func accrueHour(_ state: inout GameState, qualities: [UUID: Double]? = nil) {
+        let resolved = qualities ?? ResourceSystem.hostQualities(in: state)
         for customer in state.customers {
-            let quality = ResourceSystem.quality(for: customer, in: state)
+            let quality = customer.serverID.flatMap { resolved[$0] } ?? 0
             state.earnedThisMonth += customer.monthlyPrice/(30*24)*quality
         }
         state.electricityThisMonth += state.watts/1000*Balance.electricity
@@ -70,10 +89,11 @@ public enum Simulation {
         guard hours > 0 else { return }
         for _ in 0..<hours {
             state.hour += 1
-            EconomySystem.accrueHour(&state)
+            let qualities = ResourceSystem.hostQualities(in: state)
+            EconomySystem.accrueHour(&state, qualities: qualities)
             var good = 0.0
             for i in state.customers.indices {
-                let quality = ResourceSystem.quality(for: state.customers[i], in: state)
+                let quality = state.customers[i].serverID.flatMap { qualities[$0] } ?? 0
                 good += quality
                 let change = quality >= state.customers[i].uptimeExpectation ? 0.06 : -(1-quality)*0.6
                 state.customers[i].satisfaction = min(100, max(0, state.customers[i].satisfaction+change))
