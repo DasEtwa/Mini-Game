@@ -17,7 +17,7 @@ struct CustomersView: View {
             }
             Picker("Kundenansicht",selection:$showActive) { Text("Anfragen (\(store.game.requests.count))").tag(false); Text("Aktiv (\(store.game.customers.count))").tag(true) }.pickerStyle(.segmented)
             if (showActive ? store.game.customers : store.game.requests).isEmpty {
-                ContentUnavailableView(showActive ? "Noch keine Kunden" : "Alles abgearbeitet",systemImage:"person.crop.circle.badge.clock",description:Text("Neue Anfragen kommen automatisch etwa alle 9–18 Sekunden bei normalem Tempo."))
+                ContentUnavailableView(showActive ? "Noch keine Kunden" : "Alles abgearbeitet",systemImage:"person.crop.circle.badge.clock",description:Text("Neue Anfragen kommen bei guter Nachfrage frühestens alle 54 Sekunden bei normalem Tempo."))
             }
             ForEach(showActive ? store.game.customers : store.game.requests) { customer in
                 Panel {
@@ -29,10 +29,17 @@ struct CustomersView: View {
                     if showActive {
                         let usage = customer.usage(hour:store.game.hour)
                         Text("Jetzt: \(customer.activity(hour:store.game.hour).rawValue) · \(number(usage.cpu)) CU · \(number(usage.ram)) GB RAM").font(.caption).foregroundStyle(Theme.teal)
+                        if let contract = customer.contract {
+                            StatLine(label: "Laufzeit", value: "\(contract.months) Monate · noch \(contract.daysRemaining(hour: store.game.hour)) Tage")
+                            StatLine(label: "Status", value: "Aktiv · \(contract.renewals)× verlängert")
+                            let chance = ContractSystem.renewalChance(customer, reputation: store.game.reputation)
+                            Text("Verlängerung: \(chance >= 0.8 ? "wahrscheinlich" : chance >= 0.5 ? "unsicher" : "gefährdet") (\(Int(chance*100)) %). Qualität, Preis und Zufriedenheit zählen.").font(.caption).foregroundStyle(Theme.muted)
+                        }
                         StatLine(label:"Zufriedenheit",value:"\(Int(customer.satisfaction)) %")
                         Text("Host: \(store.game.servers.first { $0.id == customer.serverID }?.name ?? "Offline")").font(.caption)
                         Button("Vertrag kündigen",role:.destructive) { cancelID = customer.id }.frame(minHeight:44)
                     } else {
+                        Text("Vertrag: \(ContractSystem.term(for: customer.typeID)) Monate, danach mögliche Verlängerung.").font(.caption.bold())
                         Text("Anfrage gültig: noch \(max(0,customer.expiresHour-store.game.hour)) Spielstunden. Host wird passend zugewiesen.").font(.caption).foregroundStyle(Theme.muted)
                         HStack {
                             Button("Ablehnen") { store.act { CustomerSystem.decline(customer.id,in:&$0) } }.buttonStyle(.bordered).controlSize(.large)
@@ -77,7 +84,7 @@ struct FinanceView: View {
                 StatLine(label:"Internet",value:euro(store.game.plan.monthly))
                 StatLine(label:"Strom",value:euro(store.game.monthlyPowerCost))
                 Divider(); StatLine(label:"Gewinn",value:euro(store.game.monthlyProfit))
-                Text("Strom: \(Int(store.game.watts)) W ÷ 1.000 × 720 h × 0,30 €/kWh. Prognose ohne Ausfälle, Starthilfe und Einmalkäufe.").font(.caption).foregroundStyle(Theme.muted)
+                Text("Strom: \(Int(store.game.watts)) W ÷ 1.000 × 720 h × \(number(store.game.powerPlan.kWh)) €/kWh + \(euro(store.game.powerPlan.monthly)) Grundgebühr. Prognose ohne Ausfälle, Starthilfe und Einmalkäufe.").font(.caption).foregroundStyle(Theme.muted)
             }
             Panel {
                 Text("Laufender Monat").font(.headline)
@@ -86,6 +93,7 @@ struct FinanceView: View {
                 StatLine(label:"Miete & Internet bisher",value:euro(store.game.fixedCostsThisMonth))
                 StatLine(label:"Hardware & Anschluss gesamt",value:euro(store.game.hardwareSpend))
                 Text("Abrechnung in \(720-store.game.hour%720) Spielstunden. Die ersten 3 Monate erstatten deine Eltern je 400 €. Zahlungen sind zeitanteilig und bei schlechter Leistung reduziert.").font(.caption)
+                if store.game.cash < 500 { ActionButton(title:"Nachbarschafts-IT · +600 € / Spielmonat",icon:"wrench") { store.act { try ShopSystem.sideJob(&$0) } } }
                 if !store.game.rescueUsed && store.game.cash < 500 { ActionButton(title:"Einmalige Familienhilfe · +2.000 €",icon:"heart") { store.act { try ShopSystem.rescue(&$0) } } }
             }
             Panel {
@@ -130,7 +138,7 @@ struct LocationView: View {
                 Text(store.game.location == .garage ? "Willkommen in der Garage." : "Dein nächster großer Schritt.").font(.title.bold())
                 Text("Mehr Platz. Mehr Leistung. Weniger Schlafen neben blinkenden LEDs.").foregroundStyle(Theme.muted)
                 StatLine(label:"Rack-Plätze",value:"2 → 4")
-                StatLine(label:"Strom",value:"700 → 3.200 W")
+                StatLine(label:"Strom",value:"bis 1.200 → 3.200 W")
                 StatLine(label:"Basiskühlung",value:"350 → 1.800 W")
                 StatLine(label:"Miete",value:"400 → 700 €/Monat")
                 Text("Alle Racks, Server, Kunden und Kühlungsstufen ziehen mit. Business Fiber und 6-Slot-Racks werden verfügbar.").font(.caption)
@@ -142,7 +150,7 @@ struct LocationView: View {
                     requirement("\(store.game.customers.count) / 12 aktive Kunden",met:store.game.customers.count >= Balance.garageCustomers)
                     requirement("\(euro(store.game.monthlyRevenue)) / 2.500 € Monatsumsatz",met:store.game.monthlyRevenue >= Balance.garageRevenue)
                     requirement("\(Int(store.game.reputation)) / 60 Reputation",met:store.game.reputation >= Balance.garageReputation)
-                    ActionButton(title:"Garage einrichten · 18.000 €",icon:"door.left.hand.open") { store.act { try ShopSystem.moveToGarage(&$0) } }.disabled(!store.game.garageEligible)
+                    ActionButton(title:"Garage einrichten · 18.000 €",icon:"door.left.hand.open") { store.act { try ShopSystem.moveToGarage(&$0) } }.disabled(!store.game.garageEligible).accessibilityIdentifier("unlock-garage")
                 }
             } else {
                 Panel { Label(store.game.milestoneCompleted ? "Milestone 1 geschafft" : "Hoste einen vollen Tag in der Garage",systemImage:store.game.milestoneCompleted ? "trophy.fill" : "clock").font(.headline); Meter(title:"Erfolgreiche Betriebsstunden",used:Double(store.game.garageOperatingHours),capacity:24,unit:"h") }
@@ -177,15 +185,41 @@ struct SettingsView: View {
                 Toggle("Simulation pausieren",isOn:$store.paused)
                 Picker("Tempo",selection:$store.speed) { Text("1×").tag(1); Text("2×").tag(2); Text("3×").tag(3) }.pickerStyle(.segmented)
                 Text("Normales Tempo: 18 Sekunden pro Spieltag, 9 Minuten pro Monat. Offline läuft normales Tempo, maximal 2 echte Stunden. Pause gilt nur bei geöffneter App.").font(.caption)
-                ActionButton(title:"Jetzt speichern",icon:"externaldrive") { store.save(); if store.saveProblem == nil { store.message="Spielstand lokal gespeichert." } }
+                ActionButton(title:"Jetzt speichern",icon:"externaldrive") { store.save(reportSuccess: true) }
                 Button("Tutorial wieder zeigen") { store.act { $0.tutorialDismissed=false } }.frame(minHeight:44)
             }
             Panel {
                 Text("Deine Daten bleiben hier.").font(.headline)
                 Text("Kein Konto. Keine Werbung. Kein Tracking. Keine Cloud. Spielstände liegen lokal in Application Support/RackAndRich. Eine atomare Sicherung schützt den letzten gültigen Stand.").font(.subheadline)
-                Text("Rack & Rich · Version 0.1.0\nGrafik, Hardware-Universum und Sound wurden für dieses Spiel erstellt.").font(.caption).foregroundStyle(Theme.muted)
+                Text("Rack & Rich · Version 0.1.1\nGrafik, Hardware-Universum und Sound wurden für dieses Spiel erstellt.").font(.caption).foregroundStyle(Theme.muted)
                 Button("Neues Spiel starten",role:.destructive) { confirmReset=true }.frame(minHeight:44)
             }
         }.navigationTitle("Einstellungen").confirmationDialog("Neues Spiel starten? Der bisherige Stand wird archiviert und durch einen neuen ersetzt.",isPresented:$confirmReset,titleVisibility:.visible) { Button("Neues Spiel",role:.destructive) { store.reset() } }
+    }
+}
+
+struct PowerView: View {
+    @EnvironmentObject var store: GameStore
+    var body: some View {
+        Page {
+            Panel {
+                Text(store.game.powerPlan.name).font(.headline)
+                Meter(title: "Verbrauch jetzt", used: store.game.watts, capacity: store.game.powerLimit, unit: "W")
+                Meter(title: "Reservierte Spitzenleistung", used: store.game.reservedWatts, capacity: store.game.powerLimit, unit: "W")
+                Text("Beim Einschalten reservierst du die Spitzenleistung. Bezahlt wird nur der lastabhängige Verbrauch. Leere Racks brauchen keinen Strom.").font(.caption)
+            }
+            ForEach(Catalog.powerPlans) { plan in
+                Panel {
+                    Text(plan.name).font(.headline)
+                    StatLine(label: "Anschlussleistung", value: "\(Int(plan.watts)) W")
+                    StatLine(label: "Arbeitspreis", value: "\(number(plan.kWh)) €/kWh")
+                    StatLine(label: "Grundgebühr / Monat", value: euro(plan.monthly))
+                    StatLine(label: "Einrichtung", value: euro(plan.setup))
+                    if plan.id == store.game.powerID { Label("Aktiv", systemImage: "checkmark.seal.fill").foregroundStyle(Theme.teal) }
+                    else if plan.garageOnly && store.game.location != .garage { Label("Benötigt: Garage", systemImage: "lock") }
+                    else { ActionButton(title: "Stromvertrag wechseln", icon: "bolt") { store.act { try ShopSystem.power(plan.id, in: &$0) } } }
+                }
+            }
+        }.navigationTitle("Strom").navigationBarTitleDisplayMode(.inline)
     }
 }

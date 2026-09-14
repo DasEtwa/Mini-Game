@@ -1,6 +1,6 @@
 import SwiftUI
 import TycoonCore
-import AVFoundation
+import UIKit
 
 @MainActor final class GameStore: ObservableObject {
     @Published var game = GameState()
@@ -14,7 +14,9 @@ import AVFoundation
     private var ticks = 0
     private var active = false
     private var loadGeneration = 0
-    private var player: AVAudioPlayer?
+    private let saveQueue = DispatchQueue(label: "RackAndRich.save", qos: .utility)
+    private let audio = PurchaseAudio()
+    private var backgroundSave: UIBackgroundTaskIdentifier = .invalid
     private let saveURL: URL
     init() {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("RackAndRich", isDirectory: true)
@@ -37,9 +39,11 @@ import AVFoundation
         loadGeneration += 1
         let generation = loadGeneration
         let url = saveURL
+        let queue = saveQueue
         Task {
             do {
                 let result = try await Task.detached(priority: .userInitiated) { () throws -> (GameState, Int, Bool) in
+                    queue.sync {} // Finish previous lifecycle writes before reading.
                     var state: GameState
                     var recovered = false
                     if FileManager.default.fileExists(atPath: url.path) {
@@ -53,6 +57,7 @@ import AVFoundation
                     } else { state = GameState() }
                     #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("--garage-ui-testing") { state = try UITestFixtures.garage() }
+                    if ProcessInfo.processInfo.arguments.contains("--unlock-ui-testing") { state = try UITestFixtures.garage(); state.location = .bedroom; state.racks = [state.racks[0]]; state.cash = 20000; state.milestoneCompleted = false; state.garageOperatingHours = 0; state.customers = state.customers.filter { $0.serverID == state.racks[0].servers[0].id } }
                     #endif
                     let hours = SaveStore.offline(&state, now: Date())
                     return (state, hours, recovered)
@@ -69,7 +74,23 @@ import AVFoundation
             }
         }
     }
-    func deactivate() { active = false; loadGeneration += 1; if !loading { save() }; lastTick = ProcessInfo.processInfo.systemUptime }
+    func deactivate() {
+        active = false; loadGeneration += 1
+        if !loading {
+            if backgroundSave == .invalid {
+                backgroundSave = UIApplication.shared.beginBackgroundTask(withName: "Save game") { [weak self] in
+                    Task { @MainActor in self?.finishBackgroundSave() }
+                }
+            }
+            save()
+            saveQueue.async { [weak self] in Task { @MainActor in self?.finishBackgroundSave() } }
+        }
+        lastTick = ProcessInfo.processInfo.systemUptime
+    }
+    private func finishBackgroundSave() {
+        guard backgroundSave != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundSave); backgroundSave = .invalid
+    }
     func tick() {
         let now = ProcessInfo.processInfo.systemUptime
         let delta = min(2, max(0, now-lastTick)); lastTick = now
@@ -81,18 +102,31 @@ import AVFoundation
         ticks += 1
         if ticks % 20 == 0 { save() }
     }
-    func save() {
+    func save(reportSuccess: Bool = false) {
         guard saveProblem == nil, !loading else { return }
         game.lastSavedAt = max(game.lastSavedAt, Date())
-        do { try SaveStore.save(game, to: saveURL) }
-        catch { saveProblem = "Speichern fehlgeschlagen: \(error.localizedDescription)" }
+        let snapshot = game
+        let url = saveURL
+        // All disk validation, backup and atomic writes run off the UI thread in order.
+        let work = DispatchWorkItem { [weak self] in
+            do {
+                try SaveStore.save(snapshot, to: url)
+                if reportSuccess { Task { @MainActor [weak self] in self?.message = "Spielstand lokal gespeichert." } }
+            }
+            catch {
+                let detail = error.localizedDescription
+                Task { @MainActor [weak self] in self?.saveProblem = "Speichern fehlgeschlagen: \(detail)" }
+            }
+        }
+        saveQueue.async(execute: work)
     }
     func act(_ action: (inout GameState) throws -> Void) {
         guard !loading, saveProblem == nil else { return }
-        do { try action(&game); save(); sound() }
+        do { try action(&game); save(); audio.play(enabled: game.soundEnabled) }
         catch { message = error.localizedDescription }
     }
     func recoverBackup() {
+        saveQueue.sync {}
         do {
             game = try SaveStore.load(from: saveURL.appendingPathExtension("backup"))
             // Preserve the unreadable primary for diagnosis before restoring the valid backup.
@@ -105,6 +139,7 @@ import AVFoundation
     }
     private func activateAfterRecovery() { lastTick = ProcessInfo.processInfo.systemUptime; loading = false }
     func reset() {
+        saveQueue.sync {}
         do {
             for url in [saveURL, saveURL.appendingPathExtension("backup")] where FileManager.default.fileExists(atPath: url.path) {
                 try FileManager.default.moveItem(at: url, to: url.appendingPathExtension("archived-\(UUID().uuidString)"))
@@ -112,29 +147,14 @@ import AVFoundation
             game = GameState(); saveProblem = nil; loading = false; remainder = 0; save()
         } catch { message = "Neustart fehlgeschlagen: \(error.localizedDescription)" }
     }
-    private func sound() {
-        guard game.soundEnabled else { return }
-        // Original 90 ms sine chime; no audio files or external assets.
-        var data = Data()
-        func word(_ value: UInt32, bytes: Int) { for i in 0..<bytes { data.append(UInt8((value >> (8*i)) & 255)) } }
-        let count = 3970
-        data.append(contentsOf: "RIFF".utf8); word(UInt32(36+count*2), bytes: 4)
-        data.append(contentsOf: "WAVEfmt ".utf8); word(16, bytes: 4); word(1, bytes: 2); word(1, bytes: 2)
-        word(44100, bytes: 4); word(88200, bytes: 4); word(2, bytes: 2); word(16, bytes: 2)
-        data.append(contentsOf: "data".utf8); word(UInt32(count*2), bytes: 4)
-        for i in 0..<count {
-            let sample = Int16(sin(Double(i)*2*Double.pi*660/44100)*2500*(1-Double(i)/Double(count)))
-            word(UInt32(UInt16(bitPattern: sample)), bytes: 2)
-        }
-        try? AVAudioSession.sharedInstance().setCategory(.ambient)
-        player = try? AVAudioPlayer(data: data); player?.play()
-    }
+
 }
 
 #if DEBUG
 private enum UITestFixtures {
     static func garage() throws -> GameState {
         var state = GameState()
+        state.powerID = "home-max"
         state.cash = 40_000; state.reputation = 60; state.tutorialDismissed = true
         let template = state.requests[0]
         state.requests = []

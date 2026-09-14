@@ -14,27 +14,29 @@ struct RackView: View {
                         RackDrawing(rack:rack).frame(width:85,height:140)
                         VStack(alignment:.leading,spacing:8) { Text(spec.name).font(.title2.bold()); Text("\(rack.servers.count) / \(spec.slots) Systeme"); Text("\(spec.slots-rack.servers.count) freie Slots").font(.caption).foregroundStyle(Theme.teal) }
                     }
-                    Meter(title:"Rack-Strom",used:rack.watts,capacity:spec.watts,unit:"W")
-                    Meter(title:"Rack-Wärme",used:rack.watts,capacity:spec.cooling,unit:"W")
+                    Meter(title:"Rack-Strom reserviert",used:rack.watts,capacity:spec.watts,unit:"W")
+                    Meter(title:"Rack-Wärme",used:rack.servers.reduce(0) { $0+store.game.serverWatts($1) },capacity:spec.cooling,unit:"W")
                     StatLine(label:"Netzwerkbedarf",value:"\(number(store.game.customers.filter { c in rack.servers.contains { $0.id == c.serverID } }.reduce(0) { $0+$1.usage(hour:store.game.hour).network })) Mbit/s")
                 }
                 ForEach(rack.servers) { server in
                     NavigationLink { ServerView(serverID:server.id) } label: {
                         Panel {
                             HStack { Image(systemName:"server.rack").font(.title); VStack(alignment:.leading,spacing:5) { Text(server.name).font(.headline); Text("\(Catalog.part(server.cpu).name) · \(Int(server.capacity.ram)) GB RAM").font(.caption) }; Spacer(); Image(systemName:"chevron.right") }
-                            Label(server.fault ?? (server.online ? "Online · \(Int(server.watts)) W" : "Ausgeschaltet"),systemImage:server.online ? "circle.fill" : "exclamationmark.circle").font(.caption).foregroundStyle(server.online ? Theme.teal : Theme.orange)
+                            Label(server.fault ?? (server.online ? "Online · \(Int(store.game.serverWatts(server))) W" : "Ausgeschaltet"),systemImage:server.online ? "circle.fill" : "exclamationmark.circle").font(.caption).foregroundStyle(server.online ? Theme.teal : Theme.orange)
                         }.foregroundStyle(Theme.ink)
                     }.accessibilityIdentifier("server-\(server.id)")
                 }
                 if rack.servers.count < spec.slots {
                     Panel {
                         Text("Noch Platz für eine Blechkiste.").font(.headline)
-                        Text("Gebrauchtserver: FX 8400, 16 GB RAM, 250 GB HDD. Vollständig zusammengebaut. 142 W.").font(.caption)
-                        ActionButton(title:"Server einbauen · 700 €",icon:"plus") { store.act { try ShopSystem.buyServer(in:rackID,state:&$0) } }
+                        Text("Gebrauchtserver: FX 8400, 16 GB RAM, 250 GB HDD. Reserviert 142 W, im Leerlauf etwa 50 W.").font(.caption)
+                        ActionButton(title:"Server einbauen · 700 €",icon:"plus") { store.act { try ShopSystem.buyServer(in:rackID,state:&$0) } }.accessibilityIdentifier("buy-server")
                     }
                 }
-                ForEach(Catalog.racks.filter { $0.slots > spec.slots && (!$0.garageOnly || store.game.location == .garage) }) { upgrade in
-                    ActionButton(title:"Auf \(upgrade.name) erweitern · \(euro(upgrade.price))",icon:"arrow.up") { store.act { try ShopSystem.upgradeRack(rackID,to:upgrade.id,in:&$0) } }
+                ForEach(Catalog.racks.filter { $0.slots > spec.slots }) { upgrade in
+                    if upgrade.garageOnly && store.game.location != .garage { Label("\(upgrade.name) · \(upgrade.slots) Systeme · Benötigt: Garage", systemImage: "lock").font(.caption).padding(8) } else {
+                    ActionButton(title:"Auf \(upgrade.name) erweitern · \(euro(upgrade.price))",icon:"arrow.up") { store.act { try ShopSystem.upgradeRack(rackID,to:upgrade.id,in:&$0) } }.accessibilityIdentifier("upgrade-rack-\(upgrade.id)")
+                    }
                 }
             }
         }.navigationTitle("Rackverwaltung").navigationBarTitleDisplayMode(.inline)
@@ -59,7 +61,7 @@ struct ServerView: View {
                     Meter(title:"CPU gebucht",used:booked.cpu,capacity:server.capacity.cpu*Balance.cpuBookingFactor,unit:"CU")
                     Meter(title:"RAM gebucht",used:booked.ram,capacity:server.capacity.ram*Balance.ramBookingFactor,unit:"GB")
                     Meter(title:"Speicher belegt",used:booked.storage,capacity:server.capacity.storage,unit:"GB")
-                    StatLine(label:"Leistungsaufnahme",value:"\(Int(server.watts)) W")
+                    StatLine(label:"Verbrauch / reserviert",value:"\(Int(store.game.serverWatts(server))) / \(Int(server.watts)) W")
                     StatLine(label:"Netzwerkkarte",value:"1.000 Mbit/s")
                 }
                 Panel {
@@ -79,7 +81,7 @@ struct ServerView: View {
                         ActionButton(title:"Plattform modernisieren · 2.110 €",icon:"sparkles") { store.act { try ShopSystem.modernize(serverID,in:&$0) } }
                     }
                 }
-                NavigationLink { PartsShopView(serverID:serverID) } label: { Label("Komponenten kaufen & einbauen",systemImage:"cart").font(.headline).frame(maxWidth:.infinity,minHeight:54).background(Theme.teal,in:RoundedRectangle(cornerRadius:16)).foregroundStyle(.white) }
+                NavigationLink { PartsShopView(serverID:serverID) } label: { Label("Komponenten kaufen & einbauen",systemImage:"cart").font(.headline).frame(maxWidth:.infinity,minHeight:54).background(Theme.teal,in:RoundedRectangle(cornerRadius:16)).foregroundStyle(.white) }.accessibilityIdentifier("open-components")
             }
         }.navigationTitle("Server").navigationBarTitleDisplayMode(.inline)
     }
@@ -101,7 +103,7 @@ struct PartsShopView: View {
                     if let reason = incompatibility(part,append:false) {
                         Label(reason,systemImage:"info.circle").font(.caption).foregroundStyle(Theme.orange)
                     } else {
-                        ActionButton(title:"Kaufen & ersetzen",icon:"arrow.triangle.2.circlepath") { store.act { try ShopSystem.replace(serverID:serverID,partID:part.id,in:&$0) } }
+                        ActionButton(title:"Kaufen & ersetzen",icon:"arrow.triangle.2.circlepath") { store.act { try ShopSystem.replace(serverID:serverID,partID:part.id,in:&$0) } }.accessibilityIdentifier("buy-\(part.id)")
                     }
                     if part.kind == .ram || part.kind == .storage, incompatibility(part,append:true) == nil {
                         Button("Zusätzlich einbauen · \(euro(part.price))") { store.act { try ShopSystem.replace(serverID:serverID,partID:part.id,append:true,in:&$0) } }.frame(maxWidth:.infinity,minHeight:44).buttonStyle(.bordered)
@@ -143,7 +145,7 @@ struct ShopView: View {
                     Text(rack.name).font(.headline)
                     StatLine(label:"System-Slots",value:"\(rack.slots)")
                     StatLine(label:"Strom / Kühlung",value:"\(Int(rack.watts)) / \(Int(rack.cooling)) W")
-                    if rack.garageOnly && store.game.location != .garage { Label("Nur in der Garage",systemImage:"lock").font(.caption) }
+                    if rack.garageOnly && store.game.location != .garage { Label("Benötigt: Garage",systemImage:"lock").font(.caption) }
                     else { ActionButton(title:"Rack kaufen · \(euro(rack.price))",icon:"plus") { store.act { try ShopSystem.buyRack(rack.id,in:&$0) } }.disabled(store.game.racks.count >= store.game.room.racks) }
                 }
             }

@@ -7,7 +7,7 @@ with zipfile.ZipFile(sys.argv[1]) as ipa:
     prefix = 'Payload/RackAndRich.app/'
     info = plistlib.loads(ipa.read(prefix + 'Info.plist'))
     assert info['CFBundleIdentifier'] == 'de.dasetwa.rackandrich'
-    assert info['CFBundleShortVersionString'] == '0.1.0'
+    assert info['CFBundleShortVersionString'] == '0.1.1'
     assert info['CFBundleSupportedPlatforms'] == ['iPhoneOS']
     assert info['MinimumOSVersion'] == '17.0'
     binary = ipa.read(prefix + info['CFBundleExecutable'])

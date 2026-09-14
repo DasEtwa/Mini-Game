@@ -2,124 +2,139 @@ import SwiftUI
 import TycoonCore
 
 enum Destination: Identifiable {
-    case laptop, rack(UUID), location, cooling, settings
-    var id: String { switch self { case .laptop:return "laptop";case .rack(let id):return id.uuidString;case .location:return "location";case .cooling:return "cooling";case .settings:return "settings" } }
+    case laptop, rack(UUID), location, cooling, settings, shop
+    var id: String { switch self { case .laptop:return "laptop";case .rack(let id):return id.uuidString;case .location:return "location";case .cooling:return "cooling";case .settings:return "settings";case .shop:return "shop" } }
 }
 struct ContentView: View {
     @EnvironmentObject var store: GameStore
     @State private var destination: Destination?
+    @State private var tutorialVisible = true
     private let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
     var body: some View {
-        NavigationStack {
-            Page {
-                HStack(alignment:.top) {
-                    VStack(alignment:.leading,spacing:3) {
-                        Text("RACK & RICH").font(.caption.monospaced().bold()).tracking(3).foregroundStyle(Theme.teal)
-                        Text(store.game.room.name).font(.largeTitle.bold())
-                        Text("Monat \(store.game.hour/720+1) · Tag \(store.game.hour/24%30+1) · \(store.game.hour%24):00").font(.caption).foregroundStyle(Theme.muted)
-                    }
-                    Spacer()
-                    Button { destination = .settings } label: { Image(systemName:"gearshape").frame(width:44,height:44).background(.white,in:Circle()) }.accessibilityLabel("Einstellungen")
+        VStack(spacing: 0) {
+            hud
+            RoomScene(game: store.game, laptop: { openLaptop() }, rack: { destination = .rack($0) }, door: { destination = .location }, cooling: { destination = .cooling }, freeRack: { destination = .shop })
+                .accessibilityIdentifier("room-scene")
+                .overlay(alignment: .top) {
+                    if tutorialVisible && !store.game.tutorialDismissed { tutorial.padding(.horizontal, 10).padding(.top, 45) }
                 }
-                HStack(spacing:12) {
-                    Panel { Text("DEIN KONTO").font(.caption2.bold()).foregroundStyle(Theme.muted); Text(euro(store.game.cash)).font(.title2.bold()).minimumScaleFactor(0.7).lineLimit(1) }
-                    Panel { Text("GEWINN / MONAT").font(.caption2.bold()).foregroundStyle(Theme.muted); Text(euro(store.game.monthlyProfit)).font(.title2.bold()).foregroundStyle(store.game.monthlyProfit >= 0 ? Theme.teal : Theme.orange).minimumScaleFactor(0.7).lineLimit(1) }
-                }
-                if store.loading { ProgressView("Server starten …").frame(maxWidth:.infinity).padding() }
-                if let problem = store.saveProblem {
-                    Panel {
-                        Label("Spielstand braucht Aufmerksamkeit",systemImage:"externaldrive.badge.exclamationmark").bold()
-                        Text(problem).font(.subheadline)
-                        Text("Deine Dateien bleiben erhalten. Die Simulation pausiert, bis du eine Sicherung wiederherstellst oder in den Einstellungen neu beginnst.").font(.caption)
-                        ActionButton(title:"Sicherung wiederherstellen",icon:"arrow.counterclockwise") { store.recoverBackup() }
-                    }
-                }
-                RoomScene(game:store.game,laptop:{ openLaptop() },rack:{ destination = .rack($0) },door:{ destination = .location },cooling:{ destination = .cooling })
-                HStack {
-                    Label("\(store.game.customers.count) Kunden",systemImage:"person.2.fill")
-                    Spacer()
-                    Label("\(Int(store.game.reputation)) Rep",systemImage:"star.fill")
-                    Spacer()
-                    Button { store.paused.toggle() } label: { Image(systemName:store.paused ? "play.fill" : "pause.fill").frame(width:44,height:44) }.accessibilityLabel(store.paused ? "Simulation fortsetzen" : "Simulation pausieren")
-                }.font(.caption.bold()).foregroundStyle(Theme.teal)
-                if !store.game.tutorialDismissed { tutorial }
-                if store.game.milestoneCompleted {
-                    Panel { Label("GARAGE UNLOCKED",systemImage:"trophy.fill").font(.headline).foregroundStyle(Theme.orange); Text("Ein Tag erfolgreiches Hosting in der Garage. Milestone 1 geschafft! Baue dein kleines Serverreich weiter aus.") }
-                }
-                Panel {
-                    HStack { Text("Betriebsstatus").font(.headline); Spacer(); Text("LIVE").font(.caption2.monospaced().bold()).foregroundStyle(Theme.teal) }
-                    Meter(title:"CPU",used:store.game.usage.cpu,capacity:store.game.capacity.cpu,unit:"CU")
-                    Meter(title:"RAM",used:store.game.usage.ram,capacity:store.game.capacity.ram,unit:"GB")
-                    Meter(title:"Upload",used:store.game.usage.network,capacity:store.game.plan.up,unit:"Mbit/s")
-                    Meter(title:"Strom",used:store.game.watts,capacity:store.game.room.power,unit:"W")
-                    Meter(title:"Wärme",used:store.game.watts,capacity:store.game.cooling,unit:"W")
-                }
-                ActionButton(title:"Laptop öffnen · \(store.game.requests.count) Anfragen",icon:"laptopcomputer") { openLaptop() }
-                if let event = store.game.events.first {
-                    HStack(alignment:.top) { Image(systemName:"bubble.left").foregroundStyle(Theme.orange); Text(event.text).font(.subheadline) }.padding(10)
-                }
-                Text("Klein anfangen. Groß hosten.").font(.caption).foregroundStyle(Theme.muted).frame(maxWidth:.infinity).padding(.bottom,10)
-            }.toolbar(.hidden,for:.navigationBar)
+            HStack {
+                Label("\(store.game.customers.count) Kunden", systemImage: "person.2.fill")
+                Spacer()
+                Button { openLaptop() } label: { Label("\(store.game.requests.count) Anfragen", systemImage: "envelope.badge") }.accessibilityIdentifier("requests-shortcut")
+                Spacer()
+                Button { store.paused.toggle() } label: { Image(systemName: store.paused ? "play.fill" : "pause.fill").frame(width: 44, height: 44) }
+                    .accessibilityLabel(store.paused ? "Simulation fortsetzen" : "Simulation pausieren")
+            }.font(.caption.bold()).padding(.horizontal, 14)
+        }.background(Theme.cream).foregroundStyle(Theme.ink).tint(Theme.teal)
+        .overlay {
+            if store.loading { ProgressView("Server starten …").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)) }
         }
-        .sheet(item:$destination) { target in
-            NavigationStack {
-                Group {
+        .sheet(item: $destination) { target in
+            VStack(spacing: 0) {
+                // Outside the navigation stack: close stays visible even on pushed detail pages.
+                HStack {
+                    Label("home@rack-and-rich", systemImage: "terminal").font(.caption.monospaced()).foregroundStyle(Theme.teal)
+                    Spacer()
+                    Button { destination = nil } label: { Image(systemName: "xmark").font(.headline).frame(width: 44, height: 44) }
+                        .accessibilityLabel("Management schließen").accessibilityIdentifier("dismiss-management")
+                }.padding(.horizontal, 16).background(Theme.cream)
+                NavigationStack {
                     switch target {
                     case .laptop: LaptopView()
-                    case .rack(let id): RackView(rackID:id)
+                    case .rack(let id): RackView(rackID: id)
                     case .location: LocationView()
                     case .cooling: CoolingView()
                     case .settings: SettingsView()
+                    case .shop: ShopView()
                     }
                 }
-            }
-            .safeAreaInset(edge: .bottom) {
-                Button { destination = nil } label: {
-                    Label("Zurück ins Zimmer", systemImage: "house.fill")
-                        .font(.subheadline.bold()).frame(maxWidth: .infinity, minHeight: 48)
-                }.accessibilityIdentifier("close-sheet").buttonStyle(.borderedProminent)
-                    .padding(.horizontal, 18).padding(.vertical, 8).background(Theme.cream)
-            }
-            .tint(Theme.teal).presentationDragIndicator(.visible)
+            }.tint(Theme.teal).presentationDragIndicator(.visible).presentationDetents([.large])
         }
-        .alert("Rack & Rich",isPresented:Binding(get:{ store.message != nil },set:{ if !$0 { store.message = nil } })) { Button("Alles klar") { store.message = nil } } message: { Text(store.message ?? "") }
+        .alert("Rack & Rich", isPresented: Binding(get: { store.message != nil }, set: { if !$0 { store.message = nil } })) { Button("Alles klar") { store.message = nil } } message: { Text(store.message ?? "") }
+        .alert("Spielstand braucht Aufmerksamkeit", isPresented: Binding(get: { store.saveProblem != nil }, set: { _ in })) {
+            Button("Sicherung wiederherstellen") { store.recoverBackup() }
+            Button("Einstellungen") { destination = .settings }
+        } message: { Text(store.saveProblem ?? "") }
         .onReceive(timer) { _ in store.tick() }
-    }
-    func openLaptop() { store.act { $0.tutorialLaptopOpened = true }; destination = .laptop }
-    var tutorial: some View {
-        Panel {
-            HStack { Label("DEIN ERSTER HOME LAB",systemImage:"sparkles").font(.caption.bold()).foregroundStyle(Theme.orange); Spacer(); Button("Ausblenden") { store.act { $0.tutorialDismissed = true } }.font(.caption).frame(minHeight:44) }
-            Text(!store.game.tutorialLaptopOpened ? "Papa hat dir seinen alten Server überlassen. Tippe auf den Laptop und schau nach deinem ersten Kunden." : store.game.customers.isEmpty ? "Öffne im Laptop die Kundenanfragen. BlockBuilder21 wartet auf seinen ersten Server." : "Dein Server verdient Geld! Zahlungen kommen am Monatsende. Tippe auf dein Rack, um CPU oder RAM auszubauen.").font(.subheadline)
-            Text("1 Tag = 18 Sekunden · 1 Monat = 9 Minuten. Die Eltern erstatten die ersten 3 Monate je 400 €.").font(.caption).foregroundStyle(Theme.muted)
+        .task(id: store.game.tutorialDismissed) {
+            tutorialVisible = true
+            try? await Task.sleep(for: .seconds(18))
+            guard !Task.isCancelled else { return }
+            withAnimation { tutorialVisible = false }
         }
+    }
+    private var hud: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(euro(store.game.cash)).font(.title2.bold()).monospacedDigit().accessibilityIdentifier("cash-hud")
+                    Text("\(store.game.monthlyProfit >= 0 ? "+" : "")\(euro(store.game.monthlyProfit))/Monat")
+                        .font(.caption.bold()).foregroundStyle(store.game.monthlyProfit >= 0 ? Theme.teal : Theme.orange)
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(store.game.room.name).font(.subheadline.bold())
+                    Text("Tag \(store.game.hour/24+1) · \(Int(store.game.reputation)) Rep").font(.caption2)
+                }
+                Button { destination = .settings } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("Einstellungen")
+            }
+            HStack(spacing: 10) {
+                gauge("CPU", use: store.game.usage.cpu, max: store.game.capacity.cpu)
+                gauge("RAM", use: store.game.usage.ram, max: store.game.capacity.ram)
+                gauge("Upload", use: store.game.usage.network, max: store.game.plan.up)
+                gauge("Strom", use: store.game.watts, max: store.game.powerLimit)
+                gauge("Wärme", use: store.game.watts, max: store.game.cooling)
+            }
+        }.padding(.horizontal, 14).padding(.top, 4).padding(.bottom, 10)
+    }
+    private func gauge(_ name: String, use: Double, max capacity: Double) -> some View {
+        let ratio = ResourceSystem.ratio(use, capacity)
+        return VStack(alignment: .leading, spacing: 3) {
+            Text(name).font(.system(size: 10, weight: .medium))
+            Text("\(Int(ratio*100)) %").font(.system(size: 11, weight: .bold, design: .monospaced))
+            ProgressView(value: min(1, ratio)).tint(ratio > 1 ? .red : ratio > 0.8 ? Theme.orange : Theme.teal)
+        }.frame(maxWidth: .infinity).accessibilityElement(children: .combine)
+    }
+    func openLaptop() { destination = .laptop; store.act { $0.tutorialLaptopOpened = true } }
+    private var tutorial: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lightbulb.fill").foregroundStyle(Theme.orange)
+            Text(!store.game.tutorialLaptopOpened ? "Papas Server wartet. Tippe auf den Laptop für deinen ersten Kunden." : store.game.customers.isEmpty ? "Im Laptop unter Kunden wartet deine erste Anfrage." : "Du hostest! Im Rack kannst du deinen Server ausbauen.")
+                .font(.caption).fixedSize(horizontal: false, vertical: true)
+            Button { store.act { $0.tutorialDismissed = true } } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("Tutorial ausblenden")
+        }.padding(.leading, 12).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
 }
 struct LaptopView: View {
     @EnvironmentObject var store: GameStore
     var body: some View {
         Page {
-            Panel {
-                Label("home@rack-and-rich ~",systemImage:"terminal").font(.caption.monospaced()).foregroundStyle(Theme.teal)
-                Text("Alles unter Kontrolle.").font(.title.bold())
-                Text("Dein kleines Hosting-Unternehmen. Ein Laptop reicht fürs Erste.").font(.subheadline).foregroundStyle(Theme.muted)
-            }
-            Panel {
-                menu("Dashboard",subtitle:"Ressourcen & Betriebsstatus",icon:"square.grid.2x2",destination:DashboardView())
-                menu("Kunden",subtitle:"\(store.game.requests.count) neue Anfragen · \(store.game.customers.count) aktiv",icon:"person.2",destination:CustomersView())
-                menu("Hardware-Shop",subtitle:"Racks, Server & Komponenten",icon:"cpu",destination:ShopView())
-                menu("Internet",subtitle:"\(store.game.plan.name) · \(Int(store.game.plan.up)) Mbit Upload",icon:"network",destination:InternetView())
-                menu("Finanzen",subtitle:"\(euro(store.game.monthlyProfit)) prognostizierter Monatsgewinn",icon:"chart.bar",destination:FinanceView())
-                menu("Statistiken",subtitle:"Die letzten 90 Spieltage",icon:"waveform.path",destination:StatisticsView())
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("HOST OS").font(.title2.monospaced().bold())
+                    Text("\(store.game.requests.count) Anfragen · \(store.game.customers.count) Kunden").font(.caption)
+                }
+                Spacer()
+                Image(systemName: "terminal.fill").font(.largeTitle).foregroundStyle(Theme.teal)
+            }.padding(.bottom, 4)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                app("Dashboard", icon: "square.grid.2x2", destination: DashboardView())
+                app("Kunden", icon: "person.2", destination: CustomersView())
+                app("Hardware-Shop", icon: "cpu", destination: ShopView())
+                app("Internet", icon: "network", destination: InternetView())
+                app("Strom", icon: "bolt.fill", destination: PowerView())
+                app("Finanzen", icon: "chart.bar", destination: FinanceView())
+                app("Statistiken", icon: "waveform.path", destination: StatisticsView())
             }
         }.navigationTitle("Laptop").navigationBarTitleDisplayMode(.inline)
     }
-    func menu<V:View>(_ title:String,subtitle:String,icon:String,destination:V) -> some View {
-        NavigationLink(destination:destination) {
-            HStack(spacing:14) {
-                Image(systemName:icon).font(.title3).frame(width:42,height:44).background(Theme.teal.opacity(0.08),in:RoundedRectangle(cornerRadius:12))
-                VStack(alignment:.leading,spacing:3) { Text(title).font(.headline); Text(subtitle).font(.caption).foregroundStyle(Theme.muted) }
-                Spacer(); Image(systemName:"chevron.right").font(.caption)
-            }.padding(.vertical,5).foregroundStyle(Theme.ink)
+    private func app<V: View>(_ title: String, icon: String, destination: V) -> some View {
+        NavigationLink(destination: destination) {
+            VStack(spacing: 8) {
+                Image(systemName: icon).font(.title2).foregroundStyle(Theme.teal)
+                Text(title).font(.subheadline.bold()).foregroundStyle(Theme.ink)
+            }.frame(maxWidth: .infinity, minHeight: 82).background(.white, in: RoundedRectangle(cornerRadius: 16))
         }.accessibilityIdentifier(title)
     }
 }
@@ -141,7 +156,7 @@ struct DashboardView: View {
                 Meter(title:"RAM",used:store.game.usage.ram,capacity:store.game.capacity.ram,unit:"GB")
                 Meter(title:"Storage",used:store.game.usage.storage,capacity:store.game.capacity.storage,unit:"GB")
                 Meter(title:"Upload",used:store.game.usage.network,capacity:store.game.plan.up,unit:"Mbit/s")
-                Meter(title:"Strom",used:store.game.watts,capacity:store.game.room.power,unit:"W")
+                Meter(title:"Strom",used:store.game.watts,capacity:store.game.powerLimit,unit:"W")
                 Meter(title:"Wärme",used:store.game.watts,capacity:store.game.cooling,unit:"W")
                 Text("CU = Kerne × Leistungsindex. CPU darf bis 2×, RAM bis 1,25× gebucht werden. Reale Last pro Host entscheidet über die Qualität. Rot bedeutet Drosselung, Beschwerden und geringere Zahlungen.").font(.caption).foregroundStyle(Theme.muted)
             }

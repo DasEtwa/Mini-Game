@@ -7,29 +7,31 @@ struct RoomScene: View {
     let rack: (UUID) -> Void
     let door: () -> Void
     let cooling: () -> Void
+    let freeRack: () -> Void
     var garage: Bool { game.location == .garage }
     var body: some View {
         GeometryReader { geometry in
             let w = geometry.size.width
+            let scale = geometry.size.height / 460
             ZStack(alignment: .topLeading) {
                 RoomBackdrop(garage: garage)
-                roomHeading.position(x: w*0.46, y: 30)
+                roomHeading.position(x: w*0.46, y: 30*scale)
                 if garage {
-                    PegboardDrawing().frame(width:w*0.43,height:86).position(x:w*0.32,y:113)
-                    BoxDrawing().frame(width:38,height:30).position(x:w*0.12,y:255)
+                    PegboardDrawing().frame(width:w*0.43,height:86).position(x:w*0.32,y:(113)*scale)
+                    BoxDrawing().frame(width:38,height:30).position(x:w*0.12,y:(255)*scale)
                 } else {
-                    WindowDrawing().frame(width:w*0.25,height:94).position(x:w*0.18,y:141)
-                    poster.position(x:w*0.52,y:112)
-                    BedDrawing().frame(width:w*0.26,height:128).position(x:w*0.18,y:326)
-                    PlantDrawing().frame(width:31,height:59).position(x:w*0.39,y:375)
+                    WindowDrawing().frame(width:w*0.25,height:94).position(x:w*0.18,y:(141)*scale)
+                    poster.position(x:w*0.52,y:(112)*scale)
+                    BedDrawing().frame(width:w*0.26,height:128).position(x:w*0.18,y:(326)*scale)
+                    PlantDrawing().frame(width:31,height:59).position(x:w*0.39,y:(375)*scale)
                 }
                 Button(action:door) { DoorDrawing(garage:garage).frame(width:w*0.20,height:146) }
                     .buttonStyle(.plain).accessibilityLabel("Standort und Garage öffnen").accessibilityIdentifier("door")
-                    .position(x:w*0.86,y:166)
+                    .position(x:w*0.86,y:(166)*scale)
                 Button(action:laptop) {
                     DeskDrawing(garage:garage).frame(width:garage ? w*0.49 : w*0.36,height:110)
                 }.buttonStyle(.plain).accessibilityIdentifier("laptop").accessibilityLabel("Laptop öffnen")
-                    .position(x:w*(garage ? 0.40 : 0.51),y:garage ? 205 : 211)
+                    .position(x:w*(garage ? 0.40 : 0.51),y:(garage ? 205 : 211)*scale)
                 ForEach(Array(game.racks.enumerated()),id:\.element.id) { index,item in
                     Button { rack(item.id) } label: {
                         VStack(spacing:9) {
@@ -37,22 +39,23 @@ struct RoomScene: View {
                             Text("RACK \(index+1)").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1).foregroundStyle(Theme.ink)
                         }
                     }.buttonStyle(.plain).accessibilityIdentifier("rack-\(index)").accessibilityLabel("Rack \(index+1), \(item.servers.count) Server")
-                        .position(x:rackX(index,w:w),y:350)
+                        .position(x:rackX(index,w:w),y:(350)*scale)
                 }
                 ForEach(game.racks.count..<(garage ? 4 : 2),id:\.self) { index in
-                    RoundedRectangle(cornerRadius:5).stroke(Theme.ink.opacity(0.17),style:StrokeStyle(lineWidth:1.5,dash:[4,4]))
-                        .frame(width:w*0.17,height:31)
+                    Button(action: freeRack) { RoundedRectangle(cornerRadius:5).stroke(Theme.ink.opacity(0.17),style:StrokeStyle(lineWidth:1.5,dash:[4,4]))
+                        .frame(width:w*0.17,height:44)
                         .overlay(Text("STELLPLATZ").font(.system(size:7,weight:.medium,design:.monospaced)).foregroundStyle(Theme.ink.opacity(0.4)))
-                        .position(x:rackX(index,w:w),y:401).accessibilityHidden(true)
+                        }.buttonStyle(.plain).accessibilityLabel("Freien Rackplatz ausbauen").accessibilityIdentifier("free-rack-\(index)")
+                        .position(x:rackX(index,w:w),y:(401)*scale)
                 }
                 Button(action:cooling) {
                     Label(game.coolingLevel == 0 ? "Raumluft" : "Kühlung +\(game.coolingLevel)",systemImage:"fanblades.fill")
                         .font(.system(size:11,weight:.semibold)).padding(.horizontal,12).frame(height:36)
                         .background(.white.opacity(0.80),in:Capsule()).overlay(Capsule().stroke(Theme.ink.opacity(0.08)))
                 }.buttonStyle(.plain).foregroundStyle(Theme.teal).accessibilityLabel("Kühlung verwalten")
-                    .position(x:w*(garage ? 0.75 : 0.20),y:garage ? 66 : 434)
+                    .position(x:w*(garage ? 0.75 : 0.20),y:(garage ? 66 : 434)*scale)
             }.clipShape(RoundedRectangle(cornerRadius:22))
-        }.frame(height:460)
+        }
     }
     func rackX(_ index:Int,w:CGFloat) -> CGFloat { w*(garage ? 0.15+Double(index)*0.23 : 0.58+Double(index)*0.25) }
     var roomHeading: some View {
@@ -73,12 +76,13 @@ struct RoomBackdrop: View {
     var body: some View {
         Canvas { c,s in
             let w=s.width
+            c.scaleBy(x: 1, y: s.height / 460)
             c.fill(Path(CGRect(origin:.zero,size:s)),with:.linearGradient(Gradient(colors:garage ? [Color(red:0.88,green:0.89,blue:0.84),Color(red:0.75,green:0.79,blue:0.75)] : [Color(red:0.96,green:0.92,blue:0.82),Color(red:0.89,green:0.85,blue:0.74)]),startPoint:.zero,endPoint:CGPoint(x:w,y:260)))
             // Side wall and baseboards give the scene a fixed, shallow perspective.
             var side=Path();side.move(to:CGPoint(x:w*0.96,y:0));side.addLine(to:CGPoint(x:w,y:0));side.addLine(to:CGPoint(x:w,y:275));side.addLine(to:CGPoint(x:w*0.96,y:250));side.closeSubpath()
             c.fill(side,with:.color(Theme.ink.opacity(0.07)))
             let floorY=250.0
-            c.fill(Path(CGRect(x:0,y:floorY,width:w,height:s.height-floorY)),with:.linearGradient(Gradient(colors:garage ? [Color(red:0.67,green:0.72,blue:0.70),Color(red:0.80,green:0.82,blue:0.77)] : [Color(red:0.70,green:0.52,blue:0.34),Color(red:0.85,green:0.69,blue:0.48)]),startPoint:CGPoint(x:0,y:floorY),endPoint:CGPoint(x:0,y:s.height)))
+            c.fill(Path(CGRect(x:0,y:floorY,width:w,height:460-floorY)),with:.linearGradient(Gradient(colors:garage ? [Color(red:0.67,green:0.72,blue:0.70),Color(red:0.80,green:0.82,blue:0.77)] : [Color(red:0.70,green:0.52,blue:0.34),Color(red:0.85,green:0.69,blue:0.48)]),startPoint:CGPoint(x:0,y:floorY),endPoint:CGPoint(x:0,y:460)))
             c.fill(Path(CGRect(x:0,y:243,width:w,height:7)),with:.color(garage ? Color.gray.opacity(0.4) : Color(red:0.66,green:0.49,blue:0.33)))
             c.fill(Path(CGRect(x:0,y:243,width:w,height:2)),with:.color(.white.opacity(0.5)))
             for row in 0..<9 {
