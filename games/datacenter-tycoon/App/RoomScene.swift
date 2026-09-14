@@ -1,7 +1,10 @@
 import SwiftUI
 import TycoonCore
 
-struct RoomScene: View {
+struct RoomScene: View, Equatable {
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.game.location == rhs.game.location && lhs.game.racks == rhs.game.racks && lhs.game.coolingLevel == rhs.game.coolingLevel
+    }
     let game: GameState
     let laptop: () -> Void
     let rack: (UUID) -> Void

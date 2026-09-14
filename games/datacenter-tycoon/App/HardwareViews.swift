@@ -56,6 +56,7 @@ struct ServerView: View {
                     if let fault = server.fault { Label(fault,systemImage:"exclamationmark.triangle.fill").foregroundStyle(Theme.orange); ActionButton(title:"Reparieren · 120 €",icon:"wrench") { store.act { try ShopSystem.repair(serverID,in:&$0) } } }
                     Button { store.act { try ShopSystem.toggle(serverID,in:&$0) } } label: { Label(server.isOn ? "Server ausschalten" : "Server einschalten",systemImage:"power").frame(minHeight:44) }.buttonStyle(.bordered)
                     Text("Ausschalten unterbricht Kundenverträge auf diesem Host. Keine automatische Umverteilung.").font(.caption).foregroundStyle(Theme.muted)
+                    DisclosureGroup("Live- und gebuchte Ressourcen") {
                     Meter(title:"CPU live",used:use.cpu,capacity:server.online ? server.capacity.cpu : 0,unit:"CU")
                     Meter(title:"RAM live",used:use.ram,capacity:server.online ? server.capacity.ram : 0,unit:"GB")
                     Meter(title:"CPU gebucht",used:booked.cpu,capacity:server.capacity.cpu*Balance.cpuBookingFactor,unit:"CU")
@@ -63,9 +64,10 @@ struct ServerView: View {
                     Meter(title:"Speicher belegt",used:booked.storage,capacity:server.capacity.storage,unit:"GB")
                     StatLine(label:"Verbrauch / reserviert",value:"\(Int(store.game.serverWatts(server))) / \(Int(server.watts)) W")
                     StatLine(label:"Netzwerkkarte",value:"1.000 Mbit/s")
+                    }
                 }
                 Panel {
-                    Text("Deine Hardware").font(.headline)
+                    DisclosureGroup("Hardware & Mainboard-Limits") {
                     component("Mainboard",value:Catalog.part(server.board).name,icon:"rectangle.connected.to.line.below")
                     component("CPU",value:"\(Catalog.part(server.cpu).name) · \(Int(Catalog.part(server.cpu).cores)) Kerne × \(number(Catalog.part(server.cpu).performance))",icon:"cpu")
                     component("RAM",value:server.ram.map { Catalog.part($0).name }.joined(separator:" + "),icon:"memorychip")
@@ -73,6 +75,7 @@ struct ServerView: View {
                     component("Netzteil",value:Catalog.part(server.psu).name,icon:"bolt")
                     let board = Catalog.part(server.board)
                     Text("Sockel \(board.socket) · \(board.generation) · \(server.ram.count)/\(board.ramSlots) RAM-Slots · max. \(Int(board.maxRAM)) GB · \(server.storage.count)/\(board.storageSlots) Laufwerke").font(.caption).foregroundStyle(Theme.muted)
+                }
                 }
                 if server.board == "board-old" {
                     Panel {

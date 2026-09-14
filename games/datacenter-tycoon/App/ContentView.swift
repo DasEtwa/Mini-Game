@@ -14,7 +14,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             hud
             RoomScene(game: store.game, laptop: { openLaptop() }, rack: { destination = .rack($0) }, door: { destination = .location }, cooling: { destination = .cooling }, freeRack: { destination = .shop })
-                .accessibilityIdentifier("room-scene")
+                .equatable().accessibilityIdentifier("room-scene")
                 .overlay(alignment: .top) {
                     if tutorialVisible && !store.game.tutorialDismissed { tutorial.padding(.horizontal, 10).padding(.top, 45) }
                 }

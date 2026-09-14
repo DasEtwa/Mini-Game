@@ -9,12 +9,13 @@ struct CustomersView: View {
     var body: some View {
         Page {
             Panel {
-                Text("Dein Hosting-Angebot").font(.headline)
+                DisclosureGroup("Hosting-Angebot & Preise") {
                 StatLine(label:"Small VPS · 1 CU / 1 GB / 15 GB",value:"\(euro(7*store.game.priceFactor))/Mo")
                 HStack { Text("Preisniveau"); Spacer(); Text("\(Int(store.game.priceFactor*100)) %").bold() }
                 Slider(value:Binding(get:{store.game.priceFactor},set:{ value in store.act { $0.priceFactor = value } }),in:0.8...1.3,step:0.05).accessibilityLabel("Preisniveau für neue Anfragen")
                 Text("Gilt für neue Anfragen. Höhere Preise verringern die Nachfrage. Betreute Websites, Shops und Teams zahlen mehr für Service; sie brauchen eine gute Reputation.").font(.caption).foregroundStyle(Theme.muted)
             }
+                }
             Picker("Kundenansicht",selection:$showActive) { Text("Anfragen (\(store.game.requests.count))").tag(false); Text("Aktiv (\(store.game.customers.count))").tag(true) }.pickerStyle(.segmented)
             if (showActive ? store.game.customers : store.game.requests).isEmpty {
                 ContentUnavailableView(showActive ? "Noch keine Kunden" : "Alles abgearbeitet",systemImage:"person.crop.circle.badge.clock",description:Text("Neue Anfragen kommen bei guter Nachfrage frühestens alle 54 Sekunden bei normalem Tempo."))

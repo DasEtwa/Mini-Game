@@ -21,7 +21,8 @@ final class PurchaseAudio: @unchecked Sendable {
             player?.play()
         }
     }
-    private static let chime: Data = {
+    private static let chime = makeChime()
+    private static func makeChime() -> Data {
         var data = Data()
         func word(_ value: UInt32, bytes: Int) { for i in 0..<bytes { data.append(UInt8((value >> (8*i)) & 255)) } }
         let count = 3970
@@ -30,9 +31,11 @@ final class PurchaseAudio: @unchecked Sendable {
         word(44100, bytes: 4); word(88200, bytes: 4); word(2, bytes: 2); word(16, bytes: 2)
         data.append(contentsOf: "data".utf8); word(UInt32(count*2), bytes: 4)
         for i in 0..<count {
-            let sample = Int16(sin(Double(i)*2*Double.pi*660/44100)*2500*(1-Double(i)/Double(count)))
+            let phase = Double(i) * (2.0 * Double.pi * 660.0 / 44100.0)
+            let envelope = 1.0 - Double(i) / Double(count)
+            let sample = Int16(sin(phase) * 2500.0 * envelope)
             word(UInt32(UInt16(bitPattern: sample)), bytes: 2)
         }
         return data
-    }()
+    }
 }

@@ -3,8 +3,8 @@ import TycoonCore
 
 enum Strategy: String, CaseIterable {
     case aggressive, conservative, poorPurchases, prematureUpgrades, lowAcceptance, highAcceptance, unluckyChurn
-    var interval: Int { switch self { case .conservative: return 3; case .lowAcceptance: return 5; case .poorPurchases: return 4; default: return 1 } }
-    var reserve: Double { self == .conservative ? 800 : self == .aggressive ? 100 : 350 }
+    var interval: Int { switch self { case .conservative: return 3; case .lowAcceptance: return 15; case .poorPurchases: return 4; default: return 1 } }
+    var reserve: Double { self == .conservative ? 1000 : self == .aggressive ? 100 : 350 }
 }
 struct Result {
     let minutes: Double
@@ -62,7 +62,6 @@ func play(seed: UInt64, cash: Double, strategy: Strategy) -> Result {
             }
             let offers = g.requests.sorted(by: { $0.monthlyPrice > $1.monthlyPrice })
             for request in (strategy == .lowAcceptance ? Array(offers.prefix(1)) : offers) {
-                if strategy == .lowAcceptance && day % 10 != 0 { continue }
                 if strategy != .highAcceptance && g.customers.count >= 6 && request.monthlyPrice < 30 { CustomerSystem.decline(request.id, in: &g); continue }
                 if strategy == .conservative && g.usage.network > g.plan.up*0.65 { continue }
                 if strategy == .aggressive, request.monthlyPrice >= 160,

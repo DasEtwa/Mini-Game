@@ -140,4 +140,21 @@ final class PolishTests: XCTestCase {
         Simulation.advance(hours: 720, state: &g)
         XCTAssertLessThanOrEqual(g.requests.count, 3)
     }
+    func testRecoveryWorkIsAvailableWithoutResetAndRateLimited() throws {
+        var g = GameState(); g.cash = -130; g.rescueUsed = true
+        try ShopSystem.sideJob(&g)
+        XCTAssertEqual(g.cash, 470)
+        XCTAssertThrowsError(try ShopSystem.sideJob(&g))
+        g.hour = 720
+        try ShopSystem.sideJob(&g)
+        XCTAssertEqual(g.cash, 1070)
+        XCTAssertEqual(try SaveStore.decode(SaveStore.encode(g)), g)
+    }
+    func testMalformedLegacyHardwareFailsWithoutCrashing() throws {
+        var g = GameState(); g.racks[0].specID = "missing"
+        XCTAssertThrowsError(try SaveStore.decode(legacyData(g)))
+        g = GameState(); g.racks[0].servers[0].cpu = "missing"
+        XCTAssertThrowsError(try SaveStore.decode(legacyData(g)))
+    }
+
 }
