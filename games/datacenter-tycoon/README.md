@@ -5,6 +5,7 @@ Ein gemütliches, vollständig lokales iOS-Tycoon: Papas alter Server, ein Kinde
 **Version:** 0.1.0 · **Ziel:** Milestone 1 · **iOS:** 17 oder neuer · **Technik:** SwiftUI, Swift Charts, Foundation, AVFoundation. Keine Laufzeit-Abhängigkeiten von Drittanbietern.
 
 <img src="Docs/Screenshots/bedroom.png" width="280" alt="Kinderzimmer mit antippbarem Laptop, Bett und erstem Serverrack auf einem iPhone-Simulator">
+<img src="Docs/Screenshots/garage.png" width="280" alt="Garage mit vier Racks, Werkbank und Kühlung">
 
 ## Spielen
 
