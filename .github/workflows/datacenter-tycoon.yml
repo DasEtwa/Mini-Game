@@ -1,0 +1,86 @@
+name: Datacenter Tycoon iOS
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths: ['games/datacenter-tycoon/**', '.github/workflows/datacenter-tycoon.yml']
+  pull_request:
+    paths: ['games/datacenter-tycoon/**', '.github/workflows/datacenter-tycoon.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tycoon-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: games/datacenter-tycoon
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          brew install xcodegen
+      - name: Core unit tests
+        run: swift test --parallel
+      - name: Balance scenarios
+        run: swift run -c release BalanceLab | tee balance-results.txt
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: iPhone simulator tests
+        run: |
+          mkdir -p build
+          DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for a in d["devices"].values() for x in a if "iPhone" in x["name"]))')
+          echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
+          xcodebuild -project RackAndRich.xcodeproj -scheme RackAndRich -destination "platform=iOS Simulator,id=$DEVICE_ID" -resultBundlePath build/Tests.xcresult CODE_SIGNING_ALLOWED=NO test > build/tests.log 2>&1 || { tail -120 build/tests.log; exit 1; }
+      - name: Simulator screenshots
+        if: always()
+        run: |
+          if [ -d build/Tests.xcresult ]; then
+            xcrun xcresulttool export attachments --path build/Tests.xcresult --output-path build/screenshots || true
+          fi
+      - name: Archive and package unsigned SideStore IPA
+        run: bash Scripts/package-ipa.sh
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: RackAndRich-unsigned-ipa
+          path: |
+            games/datacenter-tycoon/build/RackAndRich.ipa
+            games/datacenter-tycoon/build/RackAndRich.ipa.sha256
+          if-no-files-found: error
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RackAndRich-test-evidence
+          path: |
+            games/datacenter-tycoon/build/*.log
+            games/datacenter-tycoon/build/Tests.xcresult
+            games/datacenter-tycoon/build/screenshots
+            games/datacenter-tycoon/balance-results.txt
+          retention-days: 14
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: RackAndRich-unsigned-ipa
+          path: release
+      - name: Publish tagged release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/RackAndRich.ipa release/RackAndRich.ipa.sha256 \
+            --verify-tag --title "Rack & Rich $GITHUB_REF_NAME" \
+            --notes-file games/datacenter-tycoon/Docs/RELEASE_NOTES.md

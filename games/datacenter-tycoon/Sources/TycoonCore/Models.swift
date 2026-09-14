@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Resources: Codable, Equatable {
+public struct Resources: Codable, Equatable, Sendable {
     public var cpu: Double = 0
     public var ram: Double = 0
     public var storage: Double = 0
@@ -12,7 +12,7 @@ public struct Resources: Codable, Equatable {
         .init(cpu: a.cpu+b.cpu, ram: a.ram+b.ram, storage: a.storage+b.storage, network: a.network+b.network)
     }
 }
-public struct Server: Identifiable, Codable, Equatable {
+public struct Server: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var name = "Papás alter Server"
     public var board = "board-old"
@@ -34,19 +34,19 @@ public struct Server: Identifiable, Codable, Equatable {
     }
     public var online: Bool { isOn && fault == nil }
 }
-public struct Rack: Identifiable, Codable, Equatable {
+public struct Rack: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var specID = "home"
     public var servers: [Server] = []
     public init(specID: String = "home", servers: [Server] = []) { self.specID = specID; self.servers = servers }
     public var watts: Double { servers.filter(\.online).reduce(0) { $0+$1.watts } }
 }
-public enum Region: String, Codable, CaseIterable {
+public enum Region: String, Codable, CaseIterable, Sendable {
     case europe = "Europa", usa = "USA", asia = "Asien"
     public var offset: Int { switch self { case .europe: return 1; case .usa: return -7; case .asia: return 8 } }
 }
-public enum Activity: String { case idle = "Idle", normal = "Normal", busy = "Busy", peak = "Peak" }
-public struct Customer: Identifiable, Codable, Equatable {
+public enum Activity: String, Sendable { case idle = "Idle", normal = "Normal", busy = "Busy", peak = "Peak" }
+public struct Customer: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var name: String
     public var typeID: String
@@ -80,13 +80,13 @@ public struct Customer: Identifiable, Codable, Equatable {
         return .init(cpu: booked.cpu*cpu, ram: booked.ram*ram, storage: booked.storage, network: booked.network*(0.2+cpu*0.8))
     }
 }
-public struct LedgerEntry: Identifiable, Codable, Equatable {
+public struct LedgerEntry: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var hour: Int
     public var label: String
     public var amount: Double
 }
-public struct Sample: Identifiable, Codable, Equatable {
+public struct Sample: Identifiable, Codable, Equatable, Sendable {
     public var id: Int { hour }
     public var hour: Int
     public var cpu: Double
@@ -95,12 +95,12 @@ public struct Sample: Identifiable, Codable, Equatable {
     public var revenue: Double
     public var customers: Int
 }
-public struct GameEvent: Identifiable, Codable, Equatable {
+public struct GameEvent: Identifiable, Codable, Equatable, Sendable {
     public var id = UUID()
     public var hour: Int
     public var text: String
 }
-public struct GameState: Codable, Equatable {
+public struct GameState: Codable, Equatable, Sendable {
     public var saveVersion = 1
     public var cash = Balance.startCash
     public var hour = 0

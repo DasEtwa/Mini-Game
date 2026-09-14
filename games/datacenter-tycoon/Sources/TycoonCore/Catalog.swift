@@ -1,8 +1,8 @@
 import Foundation
 
-public enum LocationID: String, Codable, CaseIterable { case bedroom, garage }
-public enum PartKind: String, Codable, CaseIterable { case board, cpu, ram, storage, psu }
-public struct Part: Identifiable, Codable, Equatable {
+public enum LocationID: String, Codable, CaseIterable, Sendable { case bedroom, garage }
+public enum PartKind: String, Codable, CaseIterable, Sendable { case board, cpu, ram, storage, psu }
+public struct Part: Identifiable, Codable, Equatable, Sendable {
     public let id: String
     public let name: String
     public let kind: PartKind
@@ -17,7 +17,7 @@ public struct Part: Identifiable, Codable, Equatable {
     public var storageSlots: Int = 0
     public var generation: String = ""
 }
-public struct RackSpec: Identifiable, Codable {
+public struct RackSpec: Identifiable, Codable, Sendable {
     public let id: String
     public let name: String
     public let slots: Int
@@ -26,7 +26,7 @@ public struct RackSpec: Identifiable, Codable {
     public let cooling: Double
     public let garageOnly: Bool
 }
-public struct InternetPlan: Identifiable, Codable {
+public struct InternetPlan: Identifiable, Codable, Sendable {
     public let id: String
     public let name: String
     public let down: Double
@@ -35,14 +35,14 @@ public struct InternetPlan: Identifiable, Codable {
     public let setup: Double
     public let garageOnly: Bool
 }
-public struct LocationSpec {
+public struct LocationSpec: Sendable {
     public let name: String
     public let racks: Int
     public let power: Double
     public let cooling: Double
     public let rent: Double
 }
-public struct CustomerType: Identifiable {
+public struct CustomerType: Identifiable, Sendable {
     public let id: String
     public let name: String
     public let resources: Resources

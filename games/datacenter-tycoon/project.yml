@@ -1,0 +1,78 @@
+name: RackAndRich
+options:
+  bundleIdPrefix: de.dasetwa
+  deploymentTarget:
+    iOS: '17.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.9'
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: '1'
+    CODE_SIGNING_ALLOWED: NO
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    TARGETED_DEVICE_FAMILY: '1,2'
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+targets:
+  TycoonCore:
+    type: framework
+    platform: iOS
+    sources: [Sources/TycoonCore]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.dasetwa.rackandrich.core
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+  RackAndRich:
+    type: application
+    platform: iOS
+    sources: [App]
+    dependencies:
+      - target: TycoonCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.dasetwa.rackandrich
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Rack & Rich
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UIRequiresFullScreen: YES
+        ITSAppUsesNonExemptEncryption: NO
+        UIApplicationSupportsIndirectInputEvents: YES
+  TycoonCoreTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests/TycoonCoreTests]
+    dependencies:
+      - target: TycoonCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+  RackAndRichUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: RackAndRich
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  RackAndRich:
+    build:
+      targets:
+        RackAndRich: all
+        TycoonCoreTests: [test]
+        RackAndRichUITests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - TycoonCoreTests
+        - RackAndRichUITests
+    archive:
+      config: Release
