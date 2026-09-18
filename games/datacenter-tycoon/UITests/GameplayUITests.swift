@@ -134,4 +134,37 @@ final class GameplayUITests: XCTestCase {
         XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
         snapshot("14-tutorial-reopened")
     }
+    @MainActor func testRepairTalentJobAndRackPayment() throws {
+        let app = launch(["--operations-ui-testing"])
+        app.buttons["rack-0"].tap()
+        let server = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'server-'")).firstMatch
+        reveal(server, in: app); server.tap()
+        let repair = app.buttons["repair-from-stock"]
+        reveal(repair, in: app); repair.tap()
+        XCTAssertFalse(app.alerts["Rack & Rich"].exists)
+        XCTAssertFalse(repair.exists)
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Talente"], in: app); app.buttons["Talente"].tap()
+        let talent = app.buttons["talent-revenue"]
+        reveal(talent, in: app); talent.tap()
+        XCTAssertTrue(app.staticTexts["1 / 5"].exists)
+        snapshot("15-talent-upgraded")
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Aufträge"], in: app); app.buttons["Aufträge"].tap()
+        let accept = app.buttons["job-accept"]
+        reveal(accept, in: app); accept.tap()
+        XCTAssertFalse(app.alerts["Rack & Rich"].exists)
+        XCTAssertFalse(accept.exists)
+        snapshot("16-active-job")
+        close(app)
+        app.buttons["Simulation fortsetzen"].tap()
+        let receipt = app.otherElements["rack-cash-receipt"].firstMatch
+        let textReceipt = app.staticTexts["rack-cash-receipt"].firstMatch
+        // SwiftUI exposes a Label as either a combined element or static text across OS versions.
+        let shown = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in receipt.exists || textReceipt.exists }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [shown], timeout: 5), .completed)
+        snapshot("17-rack-payment")
+    }
 }

@@ -4,7 +4,9 @@ Ein gemütliches, vollständig lokales iOS-Tycoon: Papas alter Server, ein Kinde
 
 **Room first. HUD second. Laptop for management.**
 
-**Version:** 0.1.1 · **Ziel:** Milestone 1 · **iOS:** 17 oder neuer · **Technik:** SwiftUI, Swift Charts, Foundation, AVFoundation. Keine Laufzeit-Abhängigkeiten von Drittanbietern.
+**Version:** 0.2.0 · **Ziel:** Milestone 1 · **iOS:** 17 oder neuer · **Technik:** SwiftUI, Swift Charts, Foundation, AVFoundation. Keine Laufzeit-Abhängigkeiten von Drittanbietern.
+
+**Neu:** individuelle Kundenzahlungstage mit Cash-Animation am Rack, Ersatzteillager und Reparaturautomatik, RackCoins, Wochenaufträge, fünf Talentzweige und Mitarbeiter ab der Garage. Alle Regeln und Startwerte: [Operations-Update](Docs/OPERATIONS.md).
 
 <img src="Docs/Screenshots/bedroom.png" width="280" alt="Kinderzimmer mit antippbarem Laptop, Bett und erstem Serverrack auf einem iPhone-Simulator">
 <img src="Docs/Screenshots/garage.png" width="280" alt="Garage mit vier Racks, Werkbank und Kühlung">
@@ -19,7 +21,7 @@ Ein gemütliches, vollständig lokales iOS-Tycoon: Papas alter Server, ein Kinde
 6. Spare 18.000 €, erreiche 12 Kunden, 2.500 € Vertragsumsatz/Monat und 60 Reputation. Öffne die Tür und richte die Garage ein.
 7. Ein Spieltag erfolgreiches Kundenhosting in der Garage beendet Milestone 1. Danach kannst du vier Racks ausbauen.
 
-**Tempo:** 18 echte Sekunden = 1 Spieltag, 9 Minuten = 1 Monat bei 1×. Die Einstellungen bieten Pause und 2×/3×. Kunden zahlen zeitanteilig zum Monatsende; schlechte Leistung reduziert Zahlungen. Die ersten drei Monate gibt es je 400 € Mieterstattung. Bei Geldnot hilft die Familie einmalig mit 2.000 €; zusätzlich gibt es unter 500 € einen begrenzten 600-€-IT-Nebenjob je Spielmonat. Prognosen enthalten keine Einmalkäufe oder Starthilfe.
+**Tempo:** 18 echte Sekunden = 1 Spieltag, 9 Minuten = 1 Monat bei 1×. Die Einstellungen bieten Pause und 2×/3×. Kunden zahlen erstmals 30 Spieltage nach Annahme und danach an ihrem eigenen Zahlungstag; schlechte Leistung reduziert Zahlungen. Der Kalender startet am 1.1.1111, jeder Monat hat 30 Tage. Miete, Internet und Strom werden weiterhin zum Monatsende abgerechnet. Die ersten drei Monate gibt es je 400 € Mieterstattung. Bei Geldnot hilft die Familie einmalig mit 2.000 €; zusätzlich gibt es unter 500 € einen begrenzten 600-€-IT-Nebenjob je Spielmonat. Prognosen enthalten keine Einmalkäufe oder Starthilfe.
 
 ## Features
 
@@ -91,7 +93,9 @@ Die IPA ist ein ZIP mit `Payload/RackAndRich.app`, ARM64-Gerätecode und eingebe
 
 ## Savegame & Datenschutz
 
-`Library/Application Support/RackAndRich/save-v1.json` im App-Sandbox-Verzeichnis; letzte gültige Fassung unter `save-v1.json.backup`. Automatisch alle 10 Sekunden, nach Käufen/Vertragsaktionen und beim Verlassen speichern. JSON-Schema `saveVersion = 2`, ID-/Kompatibilitätsvalidierung, atomare Dateiersetzung auf einer seriellen Hintergrund-Queue. Schema 1 wird automatisch migriert: bestehende Kunden bekommen drei Monate Laufzeit; unzulässige Kinderzimmer-Racks werden verlustfrei in Home Racks aufgeteilt und die Preisdifferenz erstattet. Bei mehr als vier vorhandenen Systemen erfolgt ein kostenloser Garagenumzug als Bestandsschutz. Alle Server- und Kunden-IDs bleiben erhalten. Passende Stromverträge werden übernommen. Der Dateiname bleibt für Update-Kompatibilität unverändert. Neuere Versionsnummern werden abgelehnt und niemals automatisch überschrieben. Bei beschädigtem Save kann die Sicherung explizit wiederhergestellt werden; die beschädigte Datei wird archiviert. Neustart archiviert den bisherigen Stand.
+**v0.2.0 verwendet Schema 3.** Schema 1 und 2 werden migriert. Offene Alt-Einnahmen bleiben erhalten und werden einmalig zum bisherigen Monatsende ausgezahlt. Lager, RackCoins, Talente, Aufträge, Mitarbeiter und individuelle Zahlungstermine werden lokal gespeichert. Der Dateiname und die Backup-Regeln bleiben gleich. Die folgenden Rack-Migrationsregeln gelten weiterhin für Schema 1.
+
+`Library/Application Support/RackAndRich/save-v1.json` im App-Sandbox-Verzeichnis; letzte gültige Fassung unter `save-v1.json.backup`. Automatisch alle 10 Sekunden, nach Käufen/Vertragsaktionen und beim Verlassen speichern. JSON-Schema `saveVersion = 3`, ID-/Kompatibilitätsvalidierung, atomare Dateiersetzung auf einer seriellen Hintergrund-Queue. Schema 1 wird automatisch migriert: bestehende Kunden bekommen drei Monate Laufzeit; unzulässige Kinderzimmer-Racks werden verlustfrei in Home Racks aufgeteilt und die Preisdifferenz erstattet. Bei mehr als vier vorhandenen Systemen erfolgt ein kostenloser Garagenumzug als Bestandsschutz. Alle Server- und Kunden-IDs bleiben erhalten. Passende Stromverträge werden übernommen. Der Dateiname bleibt für Update-Kompatibilität unverändert. Neuere Versionsnummern werden abgelehnt und niemals automatisch überschrieben. Bei beschädigtem Save kann die Sicherung explizit wiederhergestellt werden; die beschädigte Datei wird archiviert. Neustart archiviert den bisherigen Stand.
 
 Offline-Fortschritt: maximal 2 reale Stunden bei 1×, einschließlich Kosten, Nachfrage, Kündigungen und Reparaturereignissen. Rückwärts laufende Uhr erzeugt keine Belohnung; ein vorgerückter Zeitpunkt wird nicht zurückgesetzt. Ohne vertrauenswürdigen Server lässt sich absichtliche Zeitmanipulation nicht vollständig verhindern. Pause gilt während die App geöffnet ist, Offline-Zeit läuft weiter.
 
@@ -104,6 +108,7 @@ Die App erzwingt eine helle, kontrastreiche Spielpalette auch bei systemweitem D
 - `Hardware.swift`: atomare Käufe, Hardwarekompatibilität, Kapazitätsregeln, Standortwechsel.
 - `Simulation.swift`: Last, Qualität, Nachfrage, Reputation, Ereignisse und zeitanteilige Abrechnung.
 - `SaveStore.swift`: Validierung, Encoding, atomare Persistenz, Offline-Fortschritt.
+- `Operations.swift`: Lager, Teiledefekte, RackCoins, Talentzweige, Wochenaufträge und Mitarbeiter.
 - `App/`: SwiftUI-Szenen, Management und Lifecycle-Adapter. Simulation unabhängig von UI testbar.
 - `Tests/`, `UITests/`, `Sources/BalanceLab/`: Logik, Bedienung und reproduzierbare Progression.
 

@@ -1,17 +1,13 @@
-**Rack & Rich v0.1.1 — Room first**
+**Rack & Rich v0.2.0 — Dein Hosting wächst weiter**
 
-- Feste, nahezu bildschirmfüllende Raumansicht mit kompaktem Live-HUD; Laptop, Racks, freie Stellplätze, Tür und Kühlung direkt antippen.
-- Kompakter Laptop und aufklappbare Detailbereiche. Der große untere Zurück-Button entfällt; oben bleibt Schließen auch in Unterseiten erreichbar.
-- Käufe reagieren sofort: Save-Dateien und Audiovorbereitung laufen im Hintergrund. Ein Audiokanal verhindert aufgestapelte Kaufsounds.
-- 1.900 € Startkapital, kleinere frühe Verträge, langsamere Nachfrage und nachvollziehbare Investitionsentscheidungen.
-- Befristete Kundenverträge mit sichtbarer Restlaufzeit, Zufriedenheit und qualitätsabhängiger Verlängerung/Kündigung.
-- Vier Stromtarife: Spitzenleistung reservieren, tatsächlichen lastabhängigen Verbrauch bezahlen.
-- Kinderzimmer strikt auf 2 Home Racks mit je 2 Systemen begrenzt; Garage schaltet größere Racks frei.
-- Save-Schema 2 mit verlustfreier Migration bestehender Spielstände. Begrenzter IT-Nebenjob ermöglicht Erholung nach Fehlkäufen.
-- Erweiterte Core-/UI-Tests und BalanceLab mit sieben Strategien und fünf Seeds.
+- Jeder Kunde zahlt alle 30 Spieltage ab Annahme. Zahlungstermine stehen bei Kunden und Finanzen; Geldbeträge steigen am zugehörigen Rack auf.
+- Ersatzteillager mit Mengenkauf, manuellem Einbau und automatischem Austausch defekter CPUs, RAM-Module, Laufwerke und Netzteile.
+- RackCoins als Dank für zuverlässiges Hosting und schnelle Reparaturen; zusätzliche CPU-Wochenaufträge bringen weitere Coins.
+- Fünf Talentzweige mit je fünf Stufen: Bekanntheit, Service-Profi, Green Hosting, Werkstatt und Kundenliebling.
+- Ein Mitarbeiterplatz ab der Garage: schnelle Lagerreparaturen oder automatische, kapazitätsbewusste Kundenannahme. Monatliche Gehaltszahlung; bei Geldmangel kündigt der Mitarbeiter.
+- Mindestnachfrage verhindert Stillstand bei niedriger Reputation. Angebote behalten ihren ursprünglichen Preisfaktor. Das Tutorial lässt sich nach automatischem Ausblenden erneut anzeigen.
+- Save-Schema 3 übernimmt alte Spielstände inklusive offener Einnahmen. Neue Systeme laufen auch während des begrenzten Offline-Fortschritts.
 
-**iOS 17+**, iPhone-Hochformat. `RackAndRich.ipa` ist ein unsignierter Gerätebuild für SideStore. Mit derselben App-Identität installieren, die vorhandene App vorher nicht löschen. Keine Accounts, Werbung oder Tracking im Spiel.
+**iOS 17+**, iPhone/iPad im Hochformat. Unsignierter Gerätebuild für SideStore; Installation mit derselben App-Identität erhält den Spielstand. Keine Accounts, Werbung, Tracking oder Echtgeldwährung.
 
-Installation und Validierungsprotokoll: [README](https://github.com/DasEtwa/Mini-Game/tree/main/games/datacenter-tycoon). SHA-256: `RackAndRich.ipa.sha256`.
-
-Der vorhandene Tag v0.1.0 bleibt unverändert. Sein Release-Workflow war fehlgeschlagen; v0.1.1 wird als neuer Tag mit eigenen geprüften Assets veröffentlicht.
+Spielregeln und Startwerte: [OPERATIONS.md](OPERATIONS.md). Build- und Testnachweise: [VALIDATION.md](VALIDATION.md). Die 30-Tage-Monate des Spielkalenders bleiben unverändert.

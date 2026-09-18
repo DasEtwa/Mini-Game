@@ -61,6 +61,7 @@ struct ServerView: View {
                         }
                         ActionButton(title: "Jetzt aus Lager ersetzen", icon: "shippingbox") { store.act { try InventorySystem.repair(serverID, in: &$0) } }
                             .disabled(store.game.operations.stock[failure.partID, default: 0] == 0)
+                            .accessibilityIdentifier("repair-from-stock")
                     }
                     Button { store.act { try ShopSystem.toggle(serverID,in:&$0) } } label: { Label(server.isOn ? "Server ausschalten" : "Server einschalten",systemImage:"power").frame(minHeight:44) }.buttonStyle(.bordered)
                     Text("Ausschalten unterbricht Kundenverträge auf diesem Host. Keine automatische Umverteilung.").font(.caption).foregroundStyle(Theme.muted)

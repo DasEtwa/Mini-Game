@@ -58,6 +58,7 @@ import UIKit
                     } else { state = GameState() }
                     #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("--garage-ui-testing") { state = try UITestFixtures.garage() }
+                    if ProcessInfo.processInfo.arguments.contains("--operations-ui-testing") { state = try UITestFixtures.operations() }
                     if ProcessInfo.processInfo.arguments.contains("--unlock-ui-testing") { state = try UITestFixtures.garage(); state.location = .bedroom; state.racks = [state.racks[0]]; state.cash = 20000; state.milestoneCompleted = false; state.garageOperatingHours = 0; state.customers = state.customers.filter { $0.serverID == state.racks[0].servers[0].id } }
                     #endif
                     let hours = SaveStore.offline(&state, now: Date())
@@ -148,7 +149,7 @@ import UIKit
             for url in [saveURL, saveURL.appendingPathExtension("backup")] where FileManager.default.fileExists(atPath: url.path) {
                 try FileManager.default.moveItem(at: url, to: url.appendingPathExtension("archived-\(UUID().uuidString)"))
             }
-            game = GameState(); saveProblem = nil; loading = false; remainder = 0; save()
+            game = GameState(); saveProblem = nil; loading = false; remainder = 0; tutorialRevision += 1; save()
         } catch { message = "Neustart fehlgeschlagen: \(error.localizedDescription)" }
     }
 
@@ -156,6 +157,17 @@ import UIKit
 
 #if DEBUG
 private enum UITestFixtures {
+    static func operations() throws -> GameState {
+        var state = try garage()
+        state.operations.coins = 10
+        state.operations.jobs = []
+        JobSystem.generate(in: &state)
+        try InventorySystem.buy("cpu-old", quantity: 2, in: &state)
+        InventorySystem.fail(state.servers[0].id, partID: "cpu-old", in: &state)
+        state.customers[0].billing?.nextPaymentHour = state.hour + 1
+        state.customers[0].billing?.accrued = 100
+        return state
+    }
     static func garage() throws -> GameState {
         var state = GameState()
         state.powerID = "home-max"

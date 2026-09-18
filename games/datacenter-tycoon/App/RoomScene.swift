@@ -87,6 +87,7 @@ private struct RackCashBurst: View {
             .font(.caption.bold()).padding(8).background(.white, in: Capsule()).foregroundStyle(Theme.teal)
             .fixedSize().opacity(visible ? 1 : 0).offset(y: reduceMotion ? -25 : raised ? -75 : -20)
             .allowsHitTesting(false).accessibilityHidden(!visible)
+            .accessibilityIdentifier("rack-cash-receipt")
             .onChange(of: receipts) { old, new in
                 let oldIDs = Set(old.map(\.id))
                 let incoming = new.filter { !oldIDs.contains($0.id) }.reduce(0) { $0 + $1.amount }

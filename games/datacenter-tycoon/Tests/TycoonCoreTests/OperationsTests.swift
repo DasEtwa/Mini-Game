@@ -50,9 +50,12 @@ final class OperationsTests: XCTestCase {
     func testDemandRecoversAtZeroReputation() {
         var g = GameState(); g.reputation = 0; g.requests = []
         XCTAssertGreaterThan(Simulation.requestChance(in: g), 0)
-        Simulation.advance(hours: 7200, state: &g)
-        XCTAssertTrue(g.events.isEmpty || g.reputation == 0)
-        // Generation is stochastic, but every low-reputation state retains a positive chance.
+        var receivedRequest = false
+        for _ in 0..<100 {
+            Simulation.advance(hours: 72, state: &g)
+            receivedRequest = receivedRequest || !g.requests.isEmpty
+        }
+        XCTAssertTrue(receivedRequest)
         for rep in 0...13 { g.reputation = Double(rep); XCTAssertGreaterThan(Simulation.requestChance(in: g), 0) }
     }
     func testQuoteFactorSurvivesSliderChangesAndReload() throws {
@@ -228,5 +231,38 @@ final class OperationsTests: XCTestCase {
         XCTAssertThrowsError(try SaveStore.encode(g))
         g = try hosting(); g.customers[0].billing?.accrued = .nan
         XCTAssertThrowsError(try SaveStore.encode(g))
+    }
+    func testSalesDoesNotAcceptExpiredOffer() throws {
+        var g = GameState(); g.location = .garage
+        try StaffSystem.hire(.sales, in: &g)
+        g.requests[0].expiresHour = 8
+        Simulation.advance(hours: 8, state: &g)
+        XCTAssertTrue(g.customers.isEmpty)
+        XCTAssertTrue(g.requests.isEmpty)
+    }
+    func testRepairDelayAndTalentAndStaffEffects() throws {
+        var g = GameState(); g.cash = 10000; g.location = .garage
+        try StaffSystem.hire(.maintenance, in: &g)
+        g.operations.coins = 15
+        for _ in 0..<5 { try TalentSystem.upgrade(.repairs, in: &g) }
+        XCTAssertEqual(g.autoRepairHours, 4)
+        try InventorySystem.buy("cpu-old", quantity: 1, in: &g)
+        InventorySystem.fail(g.servers[0].id, partID: "cpu-old", in: &g)
+        Simulation.advance(hours: 3, state: &g)
+        XCTAssertFalse(g.servers[0].online)
+        Simulation.advance(hours: 1, state: &g)
+        XCTAssertTrue(g.servers[0].online)
+    }
+    func testTipIsRateLimitedAndPersists() throws {
+        var g = try hosting()
+        TalentSystem.tip(in: &g, chance: 1, reason: "Test")
+        TalentSystem.tip(in: &g, chance: 1, reason: "Test")
+        XCTAssertEqual(g.operations.coins, 1)
+        g = try SaveStore.decode(SaveStore.encode(g))
+        TalentSystem.tip(in: &g, chance: 1, reason: "Test")
+        XCTAssertEqual(g.operations.coins, 1)
+        g.hour = 24
+        TalentSystem.tip(in: &g, chance: 1, reason: "Test")
+        XCTAssertEqual(g.operations.coins, 2)
     }
 }

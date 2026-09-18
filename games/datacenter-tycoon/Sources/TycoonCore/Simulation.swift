@@ -149,8 +149,8 @@ public enum Simulation {
             JobSystem.tick(&state, qualities: qualities)
             EconomySystem.payDue(&state)
             ContractSystem.resolve(in: &state)
-            StaffSystem.tick(&state)
             state.requests.removeAll { $0.expiresHour <= state.hour }
+            StaffSystem.tick(&state)
             if state.hour % (state.reputation >= 65 ? 36 : 72) == 0 {
                 let demand = requestChance(in: state)
                 if state.random() < demand { CustomerSystem.generate(in: &state) }
