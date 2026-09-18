@@ -9,9 +9,16 @@ final class GameplayUITests: XCTestCase {
         return app
     }
     @MainActor func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<10 {
+        let scroll = app.scrollViews.firstMatch
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5), "Management scroll view must be present")
+        for _ in 0..<20 {
             if element.exists && element.isHittable { return }
-            app.swipeUp()
+            // Full-screen flicks can skip a button on a small iPhone. Stay inside
+            // the scroll view, use short drags, and reverse if the target is above us.
+            let targetIsAbove = element.exists && !element.frame.isEmpty && element.frame.midY < scroll.frame.midY
+            let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: targetIsAbove ? 0.8 : 0.2))
+            start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(element.isHittable, "Action must be reachable without a bottom overlay")
     }
@@ -146,6 +153,8 @@ final class GameplayUITests: XCTestCase {
         close(app)
         app.buttons["laptop"].tap()
         reveal(app.buttons["Talente"], in: app); app.buttons["Talente"].tap()
+        // Exercise both directions: reach the bottom branch, then return to revenue.
+        reveal(app.buttons["talent-loyalty"], in: app)
         let talent = app.buttons["talent-revenue"]
         reveal(talent, in: app); talent.tap()
         XCTAssertTrue(app.staticTexts["1 / 5"].exists)
