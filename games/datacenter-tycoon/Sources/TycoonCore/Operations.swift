@@ -181,7 +181,11 @@ public enum StaffSystem {
                     if (try? CustomerSystem.accept(request.id, in: &preview)) != nil {
                         let healthy = (0..<24).allSatisfy { offset in
                             var sample = preview; sample.hour += offset
-                            return sample.customers.allSatisfy { ResourceSystem.quality(for: $0, in: sample) >= $0.uptimeExpectation }
+                            let qualities = ResourceSystem.hostQualities(in: sample)
+                            return sample.customers.allSatisfy { customer in
+                                let quality = customer.serverID.flatMap { qualities[$0] } ?? 0
+                                return quality >= customer.uptimeExpectation
+                            }
                         }
                         if healthy { state = preview; break }
                     }

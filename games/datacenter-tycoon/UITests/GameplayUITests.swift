@@ -160,11 +160,9 @@ final class GameplayUITests: XCTestCase {
         snapshot("16-active-job")
         close(app)
         app.buttons["Simulation fortsetzen"].tap()
-        let receipt = app.otherElements["rack-cash-receipt"].firstMatch
-        let textReceipt = app.staticTexts["rack-cash-receipt"].firstMatch
         // SwiftUI exposes a Label as either a combined element or static text across OS versions.
-        let shown = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in receipt.exists || textReceipt.exists }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [shown], timeout: 5), .completed)
+        let receipt = app.descendants(matching: .any).matching(identifier: "rack-cash-receipt").firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 5))
         snapshot("17-rack-payment")
     }
 }

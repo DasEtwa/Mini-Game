@@ -1,4 +1,12 @@
-# Validierung — v0.1.1
+# Validierung
+
+## v0.2.0 — Operations-Update
+
+Core-Regressionen prüfen individuelle Zahlungstage, keine doppelten Einnahmen am Monatsende, anteilige Kündigungszahlungen, Legacy-Guthaben, Preisfaktorbindung, Mindestnachfrage, Lagerverbrauch, atomare Reparaturablehnung, Offline-Verarbeitung, Talente, Wochenaufträge und Mitarbeitergehälter. Neue UI-Abläufe prüfen Lagerkauf, Talentkauf, Reparatur, Auftrag, Mitarbeiter, Rack-Zahlungsanzeige und das erneut aufrufbare Tutorial.
+
+Der aktuelle Nachweis mit konkretem Commit und Build-Ergebnis wird in [Pull Request #1](https://github.com/DasEtwa/Mini-Game/pull/1) gepflegt. Die Actions-Prüfung führt zusätzlich weiterhin die 35 bestehenden Balance-Szenarien, zwei iPhone-Simulatoren und einen Geräte-IPA-Build aus. Die historischen Ergebnisse unten gelten ausschließlich für v0.1.1.
+
+## Historischer Stand v0.1.1
 
 Stand: 14. September 2026. Der Tag v0.1.0 bleibt unverändert. Dessen Release-Lauf scheiterte; v0.1.1 erhält einen eigenen Tag mit einer Veröffentlichung erst nach erfolgreichem Build.
 
