@@ -54,6 +54,14 @@ struct ServerView: View {
                 Panel {
                     Text(server.name).font(.title2.bold())
                     if let fault = server.fault { Label(fault,systemImage:"exclamationmark.triangle.fill").foregroundStyle(Theme.orange); ActionButton(title:"Reparieren · 120 €",icon:"wrench") { store.act { try ShopSystem.repair(serverID,in:&$0) } } }
+                    if let failure = server.failure {
+                        Text("Ersatzteil: \(Catalog.part(failure.partID).name) · \(store.game.operations.stock[failure.partID, default: 0]) auf Lager").font(.caption)
+                        if store.game.operations.automaticRepairs {
+                            Text("Automatik: noch \(max(0, store.game.autoRepairHours - (store.game.hour - failure.startedHour))) Spielstunden; wartet bei fehlendem Teil oder Stromlimit.").font(.caption)
+                        }
+                        ActionButton(title: "Jetzt aus Lager ersetzen", icon: "shippingbox") { store.act { try InventorySystem.repair(serverID, in: &$0) } }
+                            .disabled(store.game.operations.stock[failure.partID, default: 0] == 0)
+                    }
                     Button { store.act { try ShopSystem.toggle(serverID,in:&$0) } } label: { Label(server.isOn ? "Server ausschalten" : "Server einschalten",systemImage:"power").frame(minHeight:44) }.buttonStyle(.bordered)
                     Text("Ausschalten unterbricht Kundenverträge auf diesem Host. Keine automatische Umverteilung.").font(.caption).foregroundStyle(Theme.muted)
                     DisclosureGroup("Live- und gebuchte Ressourcen") {
@@ -103,13 +111,20 @@ struct PartsShopView: View {
                 Panel {
                     HStack { Text(part.name).font(.headline); Spacer(); Text(euro(part.price)).bold().foregroundStyle(Theme.teal) }
                     Text(details(part)).font(.caption)
+                    Text("Lager: \(store.game.operations.stock[part.id, default: 0]) Stück").font(.caption.bold())
                     if let reason = incompatibility(part,append:false) {
                         Label(reason,systemImage:"info.circle").font(.caption).foregroundStyle(Theme.orange)
                     } else {
                         ActionButton(title:"Kaufen & ersetzen",icon:"arrow.triangle.2.circlepath") { store.act { try ShopSystem.replace(serverID:serverID,partID:part.id,in:&$0) } }.accessibilityIdentifier("buy-\(part.id)")
+                        if store.game.operations.stock[part.id, default: 0] > 0 {
+                            Button("Aus Lager ersetzen") { store.act { try ShopSystem.replace(serverID: serverID, partID: part.id, fromStock: true, in: &$0) } }.buttonStyle(.bordered).frame(minHeight: 44)
+                        }
                     }
                     if part.kind == .ram || part.kind == .storage, incompatibility(part,append:true) == nil {
                         Button("Zusätzlich einbauen · \(euro(part.price))") { store.act { try ShopSystem.replace(serverID:serverID,partID:part.id,append:true,in:&$0) } }.frame(maxWidth:.infinity,minHeight:44).buttonStyle(.bordered)
+                        if store.game.operations.stock[part.id, default: 0] > 0 {
+                            Button("Aus Lager zusätzlich einbauen") { store.act { try ShopSystem.replace(serverID: serverID, partID: part.id, append: true, fromStock: true, in: &$0) } }.buttonStyle(.bordered).frame(minHeight: 44)
+                        }
                     }
                 }
             }
@@ -137,7 +152,8 @@ struct ShopView: View {
         Page {
             Panel {
                 Text("Hardware hat ein Zuhause.").font(.title2.bold())
-                Text("Komponenten werden in einen konkreten Server eingebaut. Öffne ein Rack und wähle den Server. Neue Systeme kaufst du im freien Rack-Slot.").font(.subheadline)
+                Text("Kaufe Komponenten auf Vorrat oder baue sie direkt im Server ein. Neue Systeme kaufst du im freien Rack-Slot.").font(.subheadline)
+                NavigationLink("Ersatzteillager öffnen") { InventoryView() }.frame(minHeight: 44)
                 ForEach(Array(store.game.racks.enumerated()),id:\.element.id) { index,rack in
                     NavigationLink("Rack \(index+1) · \(rack.servers.count) Systeme") { RackView(rackID:rack.id) }.frame(minHeight:44)
                 }

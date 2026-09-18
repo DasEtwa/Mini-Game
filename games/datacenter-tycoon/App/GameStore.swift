@@ -9,6 +9,7 @@ import UIKit
     @Published var loading = true
     @Published var paused = false
     @Published var speed = 1
+    @Published var tutorialRevision = 0
     private var lastTick = ProcessInfo.processInfo.systemUptime
     private var remainder = 0.0
     private var ticks = 0
@@ -64,7 +65,8 @@ import UIKit
                 }.value
                 guard generation == loadGeneration, active else { return }
                 game = result.0
-                if result.1 >= 24 { message = "Willkommen zurück! \(result.1/24) Spieltage wurden offline simuliert. Einnahmen werden zum Monatsende ausgezahlt." }
+                game.operations.receipts = []
+                if result.1 >= 24 { message = "Willkommen zurück! \(result.1/24) Spieltage wurden offline simuliert. Kundenzahlungen, Lagerreparaturen und Mitarbeiter liefen weiter." }
                 if result.2 { message = "Sicherung wiederhergestellt." }
                 loading = false; lastTick = ProcessInfo.processInfo.systemUptime
                 save()
@@ -129,6 +131,8 @@ import UIKit
         saveQueue.sync {}
         do {
             game = try SaveStore.load(from: saveURL.appendingPathExtension("backup"))
+            _ = SaveStore.offline(&game, now: Date())
+            game.operations.receipts = []
             // Preserve the unreadable primary for diagnosis before restoring the valid backup.
             if FileManager.default.fileExists(atPath: saveURL.path) {
                 let archive = saveURL.appendingPathExtension("damaged-\(Int(Date().timeIntervalSince1970))")
@@ -163,6 +167,7 @@ private enum UITestFixtures {
             customer.id = UUID(); customer.name = "GarageTest\(index)"
             customer.booked = .init(cpu: 0.1, ram: 0.1, storage: 1, network: 0.1)
             customer.contract = CustomerContract(months: 3, hour: 0)
+            customer.billing = CustomerBilling(hour: 0)
             customer.monthlyPrice = 250; customer.serverID = state.servers[0].id
             return customer
         }

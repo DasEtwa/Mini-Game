@@ -23,6 +23,7 @@ public struct Server: Identifiable, Codable, Equatable, Sendable {
     public var gpu: String? = nil
     public var isOn = true
     public var fault: String? = nil
+    public var failure: HardwareFailure? = nil
     public init() {}
     public var capacity: Resources {
         .init(cpu: Catalog.part(cpu).cores * Catalog.part(cpu).performance,
@@ -76,6 +77,8 @@ public struct Customer: Identifiable, Codable, Equatable, Sendable {
     public var expiresHour: Int
     public var burstMinutesUsed: Double = 0
     public var contract: CustomerContract? = nil
+    public var quotedPriceFactor: Double? = nil
+    public var billing: CustomerBilling? = nil
     public func activity(hour: Int) -> Activity {
         let local = ((hour + region.offset + phase) % 24 + 24) % 24
         let peak = Catalog.customers.first { $0.id == typeID }?.peakHour ?? 18
@@ -118,7 +121,8 @@ public struct GameEvent: Identifiable, Codable, Equatable, Sendable {
     public var text: String
 }
 public struct GameState: Codable, Equatable, Sendable {
-    public var saveVersion = 2
+    public var saveVersion = 3
+    public var operations = OperationsState()
     public var cash = Balance.startCash
     public var hour = 0
     public var location: LocationID = .bedroom
@@ -158,7 +162,7 @@ public struct GameState: Codable, Equatable, Sendable {
     public var room: LocationSpec { Catalog.location(location) }
     public var plan: InternetPlan { Catalog.plan(internetID) }
     public var cooling: Double { room.cooling + Double(coolingLevel) * (location == .bedroom ? 200 : 600) }
-    public var monthlyRevenue: Double { customers.reduce(0) { $0+$1.monthlyPrice } }
+    public var monthlyRevenue: Double { customers.reduce(0) { $0+$1.monthlyPrice } * revenueMultiplier }
     public var watts: Double { servers.reduce(0) { $0+serverWatts($1) } + Double(coolingLevel)*35 }
     public var powerPlan: PowerPlan { Catalog.powerPlans.first { $0.id == powerID }! }
     public var powerLimit: Double { min(room.power, powerPlan.watts) }
@@ -168,10 +172,10 @@ public struct GameState: Codable, Equatable, Sendable {
         guard server.online else { return 0 }
         let cpu = customers.filter { $0.serverID == server.id }.reduce(0) { $0+$1.usage(hour: hour).cpu }
         let load = min(1, cpu / max(1, server.capacity.cpu))
-        return server.watts * (0.35 + 0.65 * load)
+        return server.watts * (0.35 + 0.65 * load) * efficiencyMultiplier
     }
     public var monthlyPowerCost: Double { watts/1000*24*30*powerPlan.kWh + powerPlan.monthly }
-    public var monthlyCosts: Double { monthlyPowerCost + plan.monthly + room.rent }
+    public var monthlyCosts: Double { monthlyPowerCost + plan.monthly + room.rent + (operations.employee == nil ? 0 : StaffSystem.salary) }
     public var monthlyProfit: Double { monthlyRevenue-monthlyCosts }
     public var capacity: Resources {
         servers.reduce(Resources()) { total, server in

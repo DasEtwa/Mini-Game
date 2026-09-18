@@ -94,4 +94,44 @@ final class GameplayUITests: XCTestCase {
         let attachment = XCTAttachment(screenshot: XCUIApplication().screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
+    @MainActor func testOperationsScreensAndStockPurchase() throws {
+        let app = launch(["--garage-ui-testing"])
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Lager"], in: app); app.buttons["Lager"].tap()
+        let buy = app.buttons["stock-buy-cpu-old"]
+        reveal(buy, in: app); buy.tap()
+        XCTAssertFalse(app.alerts["Rack & Rich"].exists)
+        XCTAssertTrue(app.staticTexts["1 Stück"].exists)
+        snapshot("10-stock")
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Talente"], in: app); app.buttons["Talente"].tap()
+        XCTAssertTrue(app.staticTexts["Bekanntheit"].exists)
+        snapshot("11-talents")
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Aufträge"], in: app); app.buttons["Aufträge"].tap()
+        XCTAssertTrue(app.staticTexts["Ein bisschen mehr Leistung, bitte."].exists)
+        snapshot("12-jobs")
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Mitarbeiter"], in: app); app.buttons["Mitarbeiter"].tap()
+        let hire = app.buttons["hire-maintenance"]
+        reveal(hire, in: app); hire.tap()
+        XCTAssertTrue(app.staticTexts["Mitarbeiter im Dienst"].exists)
+        snapshot("13-staff")
+        close(app)
+    }
+    @MainActor func testTutorialCanBeShownAfterAutomaticTimeout() throws {
+        let app = launch()
+        let dismiss = app.buttons["Tutorial ausblenden"]
+        XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: dismiss)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 25), .completed)
+        app.buttons["Einstellungen"].tap()
+        let show = app.buttons["show-tutorial"]
+        reveal(show, in: app); show.tap(); close(app)
+        XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+        snapshot("14-tutorial-reopened")
+    }
 }

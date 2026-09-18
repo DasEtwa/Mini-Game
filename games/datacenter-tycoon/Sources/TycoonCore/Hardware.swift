@@ -68,12 +68,13 @@ public enum ShopSystem {
         try charge(Balance.serverPrice, label: "Gebrauchtserver", state: &next)
         state = next
     }
-    public static func replace(serverID: UUID, partID: String, append: Bool = false, in state: inout GameState) throws {
+    public static func replace(serverID: UUID, partID: String, append: Bool = false, fromStock: Bool = false, in state: inout GameState) throws {
         guard let part = Catalog.parts.first(where: { $0.id == partID }) else { throw GameError.rule("Hardware unbekannt.") }
         var next = state
         guard let r = next.racks.firstIndex(where: { $0.servers.contains { $0.id == serverID } }),
               let s = next.racks[r].servers.firstIndex(where: { $0.id == serverID }) else { throw GameError.rule("Server fehlt.") }
         var server = next.racks[r].servers[s]
+        guard server.fault == nil else { throw GameError.rule("Vor dem Umbau den Defekt reparieren.") }
         switch part.kind {
         case .board: server.board = part.id
         case .cpu: server.cpu = part.id
@@ -86,7 +87,8 @@ public enum ShopSystem {
         guard HardwareSystem.booked(on: server.id, in: state).storage <= server.capacity.storage else { throw GameError.rule("Belegte Kundendaten passen nicht auf diesen Speicher.") }
         next.racks[r].servers[s] = server
         try HardwareSystem.validateRoom(next)
-        try charge(part.price, label: part.name, state: &next)
+        if fromStock { try InventorySystem.consume(part.id, in: &next) }
+        else { try charge(part.price, label: part.name, state: &next) }
         state = next
     }
     // Board, CPU and RAM must change atomically across incompatible generations.
@@ -94,6 +96,7 @@ public enum ShopSystem {
         var next = state
         guard let r = next.racks.firstIndex(where: { $0.servers.contains { $0.id == id } }), let s = next.racks[r].servers.firstIndex(where: { $0.id == id }) else { throw GameError.rule("Server fehlt.") }
         guard next.racks[r].servers[s].board != "board-pro" else { throw GameError.rule("Plattform ist bereits modern.") }
+        guard next.racks[r].servers[s].fault == nil else { throw GameError.rule("Vor dem Umbau den Defekt reparieren.") }
         next.racks[r].servers[s].board = "board-pro"
         next.racks[r].servers[s].cpu = "cpu-pro"
         next.racks[r].servers[s].ram = ["ram-32", "ram-32"]
@@ -112,9 +115,12 @@ public enum ShopSystem {
     public static func repair(_ id: UUID, in state: inout GameState) throws {
         guard let r = state.racks.firstIndex(where: { $0.servers.contains { $0.id == id } }), let s = state.racks[r].servers.firstIndex(where: { $0.id == id }), state.racks[r].servers[s].fault != nil else { throw GameError.rule("Keine Reparatur nötig.") }
         var next = state
+        let failure = next.racks[r].servers[s].failure
         next.racks[r].servers[s].fault = nil
+        next.racks[r].servers[s].failure = nil
         try HardwareSystem.validateRoom(next)
         try charge(Balance.repairPrice, label: "Reparatur", state: &next)
+        InventorySystem.rewardRepair(id, failure: failure, state: &next)
         state = next
     }
     public static func internet(_ id: String, in state: inout GameState) throws {

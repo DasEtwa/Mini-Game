@@ -3,7 +3,7 @@ import TycoonCore
 
 struct RoomScene: View, Equatable {
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.game.location == rhs.game.location && lhs.game.racks == rhs.game.racks && lhs.game.coolingLevel == rhs.game.coolingLevel
+        lhs.game.location == rhs.game.location && lhs.game.racks == rhs.game.racks && lhs.game.coolingLevel == rhs.game.coolingLevel && lhs.game.operations.receipts == rhs.game.operations.receipts
     }
     let game: GameState
     let laptop: () -> Void
@@ -42,6 +42,7 @@ struct RoomScene: View, Equatable {
                             Text("RACK \(index+1)").font(.system(size:10,weight:.bold,design:.monospaced)).tracking(1).foregroundStyle(Theme.ink)
                         }
                     }.buttonStyle(.plain).accessibilityIdentifier("rack-\(index)").accessibilityLabel("Rack \(index+1), \(item.servers.count) Server")
+                        .overlay(alignment: .top) { RackCashBurst(receipts: game.operations.receipts.filter { $0.rackID == item.id }) }
                         .position(x:rackX(index,w:w),y:(350)*scale)
                 }
                 ForEach(game.racks.count..<(garage ? 4 : 2),id:\.self) { index in
@@ -72,6 +73,33 @@ struct RoomScene: View, Equatable {
             .foregroundStyle(Color(red:0.96,green:0.84,blue:0.62)).padding(9).frame(width:59,height:68)
             .background(Theme.teal).overlay(Rectangle().stroke(.white.opacity(0.7),lineWidth:4)).rotationEffect(.degrees(-3))
             .shadow(color:.black.opacity(0.1),radius:2,y:2).accessibilityHidden(true)
+    }
+}
+private struct RackCashBurst: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let receipts: [CashReceipt]
+    @State private var amount = 0.0
+    @State private var visible = false
+    @State private var raised = false
+    @State private var revision = 0
+    var body: some View {
+        Label("+\(euro(amount))", systemImage: "banknote.fill")
+            .font(.caption.bold()).padding(8).background(.white, in: Capsule()).foregroundStyle(Theme.teal)
+            .fixedSize().opacity(visible ? 1 : 0).offset(y: reduceMotion ? -25 : raised ? -75 : -20)
+            .allowsHitTesting(false).accessibilityHidden(!visible)
+            .onChange(of: receipts) { old, new in
+                let oldIDs = Set(old.map(\.id))
+                let incoming = new.filter { !oldIDs.contains($0.id) }.reduce(0) { $0 + $1.amount }
+                guard incoming > 0 else { return }
+                amount = incoming; visible = true; raised = false; revision += 1
+            }
+            .task(id: revision) {
+                guard visible else { return }
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 1.8)) { raised = true }
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.25)) { visible = false }
+            }
     }
 }
 struct RoomBackdrop: View {
