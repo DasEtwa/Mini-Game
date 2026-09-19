@@ -1,4 +1,10 @@
-# Balancing — v0.1.1
+# Balancing
+
+## v0.2.0
+
+Die Grundpreise bleiben bestehen. Neu sind individuelle Zahlungszyklen, Mindestnachfrage bei niedriger Reputation und die optionalen Operations-Systeme. Deren Werte stehen in [OPERATIONS.md](OPERATIONS.md). Durch individuelle Zahlungstermine ändert sich die Liquidität gegenüber v0.1.1; historische Messwerte unten gelten nicht automatisch für das Update.
+
+## Historischer Stand v0.1.1
 
 ## Ausgangswerte und Entscheidungen
 

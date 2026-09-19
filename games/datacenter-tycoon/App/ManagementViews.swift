@@ -37,6 +37,10 @@ struct CustomersView: View {
                             Text("Verlängerung: \(chance >= 0.8 ? "wahrscheinlich" : chance >= 0.5 ? "unsicher" : "gefährdet") (\(Int(chance*100)) %). Qualität, Preis und Zufriedenheit zählen.").font(.caption).foregroundStyle(Theme.muted)
                         }
                         StatLine(label:"Zufriedenheit",value:"\(Int(customer.satisfaction)) %")
+                        if let billing = customer.billing {
+                            StatLine(label: "Nächste Zahlung", value: GameState.dateLabel(hour: billing.nextPaymentHour))
+                            StatLine(label: "Bisher verdient", value: euro(billing.accrued))
+                        }
                         Text("Host: \(store.game.servers.first { $0.id == customer.serverID }?.name ?? "Offline")").font(.caption)
                         Button("Vertrag kündigen",role:.destructive) { cancelID = customer.id }.frame(minHeight:44)
                     } else {
@@ -84,16 +88,20 @@ struct FinanceView: View {
                 StatLine(label:"Miete / Kostenbeitrag",value:euro(store.game.room.rent))
                 StatLine(label:"Internet",value:euro(store.game.plan.monthly))
                 StatLine(label:"Strom",value:euro(store.game.monthlyPowerCost))
+                StatLine(label:"Mitarbeiter",value:euro(store.game.operations.employee == nil ? 0 : StaffSystem.salary))
                 Divider(); StatLine(label:"Gewinn",value:euro(store.game.monthlyProfit))
                 Text("Strom: \(Int(store.game.watts)) W ÷ 1.000 × 720 h × \(energyRate(store.game.powerPlan.kWh)) €/kWh + \(euro(store.game.powerPlan.monthly)) Grundgebühr. Prognose ohne Ausfälle, Starthilfe und Einmalkäufe.").font(.caption).foregroundStyle(Theme.muted)
             }
             Panel {
                 Text("Laufender Monat").font(.headline)
-                StatLine(label:"Verdient, noch nicht ausgezahlt",value:euro(store.game.earnedThisMonth))
+                StatLine(label:"Verdient, noch nicht ausgezahlt",value:euro(store.game.pendingRevenue))
                 StatLine(label:"Strom bisher",value:euro(store.game.electricityThisMonth))
                 StatLine(label:"Miete & Internet bisher",value:euro(store.game.fixedCostsThisMonth))
                 StatLine(label:"Hardware & Anschluss gesamt",value:euro(store.game.hardwareSpend))
-                Text("Abrechnung in \(720-store.game.hour%720) Spielstunden. Die ersten 3 Monate erstatten deine Eltern je 400 €. Zahlungen sind zeitanteilig und bei schlechter Leistung reduziert.").font(.caption)
+                Text("Kunden zahlen alle 30 Spieltage ab Annahme, erstmals nach einem Monat. Bei Kündigung wird der Rest ausgezahlt. Miete, Internet und Strom werden in \(720-store.game.hour%720) Spielstunden abgerechnet. Die ersten 3 Monate erstatten deine Eltern je 400 €.").font(.caption)
+                ForEach(store.game.customers.sorted { ($0.billing?.nextPaymentHour ?? 0) < ($1.billing?.nextPaymentHour ?? 0) }.prefix(5)) { customer in
+                    if let billing = customer.billing { StatLine(label: customer.name, value: GameState.dateLabel(hour: billing.nextPaymentHour)) }
+                }
                 if store.game.cash < 500 { ActionButton(title:"Nachbarschafts-IT · +600 € / Spielmonat",icon:"wrench") { store.act { try ShopSystem.sideJob(&$0) } } }
                 if !store.game.rescueUsed && store.game.cash < 500 { ActionButton(title:"Einmalige Familienhilfe · +2.000 €",icon:"heart") { store.act { try ShopSystem.rescue(&$0) } } }
             }
@@ -187,12 +195,12 @@ struct SettingsView: View {
                 Picker("Tempo",selection:$store.speed) { Text("1×").tag(1); Text("2×").tag(2); Text("3×").tag(3) }.pickerStyle(.segmented)
                 Text("Normales Tempo: 18 Sekunden pro Spieltag, 9 Minuten pro Monat. Offline läuft normales Tempo, maximal 2 echte Stunden. Pause gilt nur bei geöffneter App.").font(.caption)
                 ActionButton(title:"Jetzt speichern",icon:"externaldrive") { store.save(reportSuccess: true) }
-                Button("Tutorial wieder zeigen") { store.act { $0.tutorialDismissed=false } }.frame(minHeight:44)
+                Button("Tutorial wieder zeigen") { store.act { $0.tutorialDismissed=false }; store.tutorialRevision += 1 }.frame(minHeight:44).accessibilityIdentifier("show-tutorial")
             }
             Panel {
                 Text("Deine Daten bleiben hier.").font(.headline)
                 Text("Kein Konto. Keine Werbung. Kein Tracking. Keine Cloud. Spielstände liegen lokal in Application Support/RackAndRich. Eine atomare Sicherung schützt den letzten gültigen Stand.").font(.subheadline)
-                Text("Rack & Rich · Version 0.1.1\nGrafik, Hardware-Universum und Sound wurden für dieses Spiel erstellt.").font(.caption).foregroundStyle(Theme.muted)
+                Text("Rack & Rich · Version 0.2.0\nGrafik, Hardware-Universum und Sound wurden für dieses Spiel erstellt.").font(.caption).foregroundStyle(Theme.muted)
                 Button("Neues Spiel starten",role:.destructive) { confirmReset=true }.frame(minHeight:44)
             }
         }.navigationTitle("Einstellungen").confirmationDialog("Neues Spiel starten? Der bisherige Stand wird archiviert und durch einen neuen ersetzt.",isPresented:$confirmReset,titleVisibility:.visible) { Button("Neues Spiel",role:.destructive) { store.reset() } }

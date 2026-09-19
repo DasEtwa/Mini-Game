@@ -42,6 +42,7 @@ final class TycoonCoreTests: XCTestCase {
         XCTAssertEqual(g.electricityThisMonth,g.watts/1000*720*0.34,accuracy:0.001)
         XCTAssertEqual(g.fixedCostsThisMonth,435,accuracy:0.001)
         g.hour = 720
+        EconomySystem.payDue(&g)
         EconomySystem.closeMonth(&g)
         let expectedCash = Balance.startCash - 28 - (g.watts / 1000 * 720 * 0.34)
         XCTAssertEqual(g.cash,expectedCash,accuracy:0.001)
@@ -215,9 +216,9 @@ final class TycoonCoreTests: XCTestCase {
         XCTAssertEqual(try SaveStore.load(from:url.appendingPathExtension("backup")),old)
     }
     func testInvalidSaveAndFutureVersionRejected() throws {
-        var g=GameState();g.saveVersion=3
+        var g=GameState();g.saveVersion=4
         XCTAssertThrowsError(try SaveStore.encode(g))
-        XCTAssertThrowsError(try SaveStore.decode(Data("{\"saveVersion\":3}".utf8)))
+        XCTAssertThrowsError(try SaveStore.decode(Data("{\"saveVersion\":4}".utf8)))
         g=GameState();g.racks[0].servers[0].cpu="missing"
         XCTAssertThrowsError(try SaveStore.encode(g))
         g=GameState();g.cash = .nan

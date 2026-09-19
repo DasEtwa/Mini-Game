@@ -106,7 +106,7 @@ final class PolishTests: XCTestCase {
         g.racks[0].specID = "medium"; g.racks[0].servers += [Server(), Server()]
         let oldIDs = g.servers.map(\.id)
         let loaded = try SaveStore.decode(legacyData(g))
-        XCTAssertEqual(loaded.saveVersion, 2)
+        XCTAssertEqual(loaded.saveVersion, 3)
         XCTAssertEqual(loaded.servers.map(\.id), oldIDs)
         XCTAssertEqual(loaded.customers[0].id, g.customers[0].id)
         XCTAssertEqual(loaded.customers[0].contract?.months, 3)

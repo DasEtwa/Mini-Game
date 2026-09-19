@@ -63,7 +63,7 @@ struct ContentView: View {
         } message: { Text(showSaveProblem ? (store.saveProblem ?? "") : (store.message ?? "")) }
         .onChange(of: store.saveProblem) { _, problem in showSaveProblem = problem != nil }
         .onReceive(timer) { _ in store.tick() }
-        .task(id: store.game.tutorialDismissed) {
+        .task(id: "\(store.game.tutorialDismissed)-\(store.tutorialRevision)") {
             tutorialVisible = true
             try? await Task.sleep(for: .seconds(18))
             guard !Task.isCancelled else { return }
@@ -81,7 +81,8 @@ struct ContentView: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(store.game.room.name).font(.subheadline.bold())
-                    Text("Tag \(store.game.hour/24+1) · \(Int(store.game.reputation)) Rep").font(.caption2)
+                    Text("\(GameState.dateLabel(hour: store.game.hour)) · \(Int(store.game.reputation)) Rep").font(.caption2)
+                    Text("\(store.game.operations.coins) RackCoins").font(.caption2.bold()).foregroundStyle(Theme.orange)
                 }
                 Button { destination = .settings } label: { Image(systemName: store.saveProblem == nil ? "gearshape" : "exclamationmark.triangle").frame(width: 44, height: 44) }.accessibilityLabel("Einstellungen")
             }
@@ -132,6 +133,10 @@ struct LaptopView: View {
                 app("Strom", icon: "bolt.fill", destination: PowerView())
                 app("Finanzen", icon: "chart.bar", destination: FinanceView())
                 app("Statistiken", icon: "waveform.path", destination: StatisticsView())
+                app("Lager", icon: "shippingbox", destination: InventoryView())
+                app("Aufträge", icon: "checklist", destination: JobsView())
+                app("Talente", icon: "sparkles", destination: TalentsView())
+                app("Mitarbeiter", icon: "person.badge.key", destination: StaffView())
             }
         }.navigationTitle("Laptop").navigationBarTitleDisplayMode(.inline)
     }

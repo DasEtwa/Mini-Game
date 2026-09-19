@@ -2,7 +2,7 @@ import Foundation
 
 public enum SaveStore {
     public static func validate(_ state: GameState) throws {
-        guard state.saveVersion == 2 else { throw GameError.rule("Spielstand-Version \(state.saveVersion) wird nicht unterstützt. Bitte App aktualisieren.") }
+        guard state.saveVersion == 3 else { throw GameError.rule("Spielstand-Version \(state.saveVersion) wird nicht unterstützt. Bitte App aktualisieren.") }
         let numbers = [state.cash, state.reputation, state.priceFactor, state.earnedThisMonth, state.electricityThisMonth, state.fixedCostsThisMonth, state.lifetimeRevenue, state.hardwareSpend, state.offlineRemainder]
         guard numbers.allSatisfy(\.isFinite), (0...100).contains(state.reputation), (0.8...1.3).contains(state.priceFactor),
               state.hour >= 0, state.hour < 100_000_000, (0...3).contains(state.coolingLevel), !state.racks.isEmpty,
@@ -15,10 +15,23 @@ public enum SaveStore {
         for rack in state.racks {
             guard let spec = Catalog.racks.first(where: { $0.id == rack.specID }), rack.servers.count <= spec.slots,
                   !spec.garageOnly || state.location == .garage else { throw GameError.rule("Ungültiges Rack.") }
-            for server in rack.servers { try HardwareSystem.validate(server) }
+            for server in rack.servers {
+                try HardwareSystem.validate(server)
+                if let failure = server.failure {
+                    guard server.fault != nil, failure.startedHour >= 0, failure.startedHour <= state.hour,
+                          failure.slot >= 0, ([server.cpu, server.psu] + server.ram + server.storage).contains(failure.partID) else { throw GameError.rule("Ungültiger Hardwaredefekt.") }
+                }
+            }
         }
         guard Catalog.powerPlans.contains(where: { $0.id == state.powerID && (!$0.garageOnly || state.location == .garage) }) else { throw GameError.rule("Ungültiger Stromvertrag.") }
         for customer in state.customers+state.requests {
+            if let factor = customer.quotedPriceFactor {
+                guard factor.isFinite, (0.8...1.3).contains(factor) else { throw GameError.rule("Ungültiger Angebotspreis.") }
+            }
+            if let billing = customer.billing {
+                guard billing.accrued.isFinite, billing.accrued >= 0, billing.nextPaymentHour > state.hour,
+                      billing.nextPaymentHour <= state.hour + 720 else { throw GameError.rule("Ungültiger Zahlungstermin.") }
+            }
             if let term = customer.contract {
                 guard [1,2,3,6,12].contains(term.months), term.startedHour >= 0, term.endHour > term.startedHour,
                       term.priceFactor.isFinite, (0.8...1.3).contains(term.priceFactor), term.serviceHours >= 0,
@@ -32,7 +45,8 @@ public enum SaveStore {
                   customer.serverID == nil || state.servers.contains(where: { $0.id == customer.serverID }) else { throw GameError.rule("Ungültiger Kundenvertrag.") }
         }
         try HardwareSystem.validateRoom(state)
-        guard state.customers.allSatisfy({ $0.serverID != nil && $0.contract != nil }) else { throw GameError.rule("Kunde ohne Host.") }
+        guard state.customers.allSatisfy({ $0.serverID != nil && $0.contract != nil && $0.billing != nil }) else { throw GameError.rule("Kunde ohne Host oder Abrechnung.") }
+        try validateOperations(state)
     }
     public static func encode(_ state: GameState) throws -> Data {
         try validate(state)
@@ -42,14 +56,16 @@ public enum SaveStore {
     public static func decode(_ data: Data) throws -> GameState {
         // Inspect the envelope before decoding fields so future saves are never silently reset.
         let envelope = try JSONDecoder().decode(VersionEnvelope.self, from: data)
-        guard (1...2).contains(envelope.saveVersion) else { throw GameError.rule("Neuere Spielstand-Version. Bitte App aktualisieren.") }
-        let state = try JSONDecoder().decode(GameState.self, from: envelope.saveVersion == 1 ? migrate(data) : data)
+        guard (1...3).contains(envelope.saveVersion) else { throw GameError.rule("Neuere Spielstand-Version. Bitte App aktualisieren.") }
+        let legacy = envelope.saveVersion == 1 ? try migrate(data) : data
+        let state = try JSONDecoder().decode(GameState.self, from: envelope.saveVersion < 3 ? migrateOperations(legacy) : legacy)
         try validate(state)
         return state
     }
     private static func migrate(_ data: Data) throws -> Data {
         guard var json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw GameError.rule("Spielstand unlesbar.") }
         json["saveVersion"] = 2
+        json["operations"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(OperationsState()))
         json["powerID"] = (json["location"] as? String) == "garage" ? "business" : "home-max"
         var state = try JSONDecoder().decode(GameState.self, from: JSONSerialization.data(withJSONObject: json))
         // Reject malformed legacy references before using catalog-derived properties.
@@ -77,6 +93,53 @@ public enum SaveStore {
         }
         state.log("Update: Bestehende Kunden erhalten drei Monate Laufzeit. Ein passender Stromvertrag ist für deinen Bestand freigeschaltet.")
         return try JSONEncoder().encode(state)
+    }
+    private static func migrateOperations(_ data: Data) throws -> Data {
+        guard var json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw GameError.rule("Spielstand unlesbar.") }
+        json["saveVersion"] = 3
+        json["operations"] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(OperationsState()))
+        var state = try JSONDecoder().decode(GameState.self, from: JSONSerialization.data(withJSONObject: json))
+        state.operations.legacyReceivable = state.earnedThisMonth
+        for i in state.customers.indices {
+            let start = state.customers[i].contract?.startedHour ?? state.hour
+            let elapsed = max(0, state.hour - start)
+            var billing = CustomerBilling(hour: state.hour)
+            billing.nextPaymentHour = state.hour + 720 - elapsed % 720
+            state.customers[i].billing = billing
+            state.customers[i].quotedPriceFactor = state.customers[i].contract?.priceFactor ?? 1
+        }
+        // Historic offers have no stored quote factor; infer it within their ±10% price variation.
+        for i in state.requests.indices {
+            guard let type = Catalog.customers.first(where: { $0.id == state.requests[i].typeID }) else { throw GameError.rule("Unbekannte Kundenanfrage.") }
+            state.requests[i].quotedPriceFactor = min(1.3, max(0.8, state.requests[i].monthlyPrice / type.price))
+        }
+        state.log("Update: individuelle Zahlungstage. Bereits verdiente Altbeträge kommen noch zum Monatsende.")
+        return try JSONEncoder().encode(state)
+    }
+    private static func validateOperations(_ state: GameState) throws {
+        let ops = state.operations
+        guard ops.coins >= 0, ops.coins <= 1_000_000_000, ops.nextTipHour >= 0,
+              ops.legacyReceivable.isFinite, ops.legacyReceivable >= 0, ops.receipts.count <= 24, ops.jobs.count <= 3,
+              ops.stock.allSatisfy({ key, count in Catalog.parts.contains { $0.id == key } && (0...999).contains(count) }),
+              ops.talents.allSatisfy({ key, level in Talent(rawValue: key) != nil && (0...5).contains(level) }),
+              Set(ops.jobs.map(\.id)).count == ops.jobs.count,
+              Set(ops.jobs.map(\.customerID)).count == ops.jobs.count else { throw GameError.rule("Ungültiges Lager oder RackCoin-Fortschritt.") }
+        if let employee = ops.employee {
+            guard state.location == .garage, employee.nextSalaryHour > state.hour, employee.nextSalaryHour <= state.hour + 720,
+                  employee.nextActionHour > state.hour, employee.nextActionHour <= state.hour + 8 else { throw GameError.rule("Ungültiger Mitarbeitervertrag.") }
+        }
+        for receipt in ops.receipts {
+            guard receipt.amount.isFinite, receipt.amount > 0, receipt.hour >= 0, receipt.hour <= state.hour,
+                  state.racks.contains(where: { $0.id == receipt.rackID }) else { throw GameError.rule("Ungültige Zahlung.") }
+        }
+        for job in ops.jobs {
+            guard let customer = state.customers.first(where: { $0.id == job.customerID }), job.offeredHour >= 0,
+                  job.offeredHour <= state.hour, (0...CustomerJob.duration).contains(job.goodHours) else { throw GameError.rule("Ungültiger Kundenauftrag.") }
+            if let start = job.startedHour {
+                guard start >= job.offeredHour, start <= state.hour, state.hour < start + CustomerJob.duration,
+                      job.goodHours <= state.hour - start, customer.booked.cpu >= CustomerJob.extraCPU else { throw GameError.rule("Ungültiger aktiver Auftrag.") }
+            } else if job.goodHours != 0 { throw GameError.rule("Ungültiger Auftragsfortschritt.") }
+        }
     }
     private struct VersionEnvelope: Decodable { let saveVersion: Int }
     public static func save(_ state: GameState, to url: URL) throws {

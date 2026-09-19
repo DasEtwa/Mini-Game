@@ -9,9 +9,16 @@ final class GameplayUITests: XCTestCase {
         return app
     }
     @MainActor func reveal(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<10 {
+        let scroll = app.scrollViews.firstMatch
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5), "Management scroll view must be present")
+        for _ in 0..<20 {
             if element.exists && element.isHittable { return }
-            app.swipeUp()
+            // Full-screen flicks can skip a button on a small iPhone. Stay inside
+            // the scroll view, use short drags, and reverse if the target is above us.
+            let targetIsAbove = element.exists && !element.frame.isEmpty && element.frame.midY < scroll.frame.midY
+            let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: targetIsAbove ? 0.8 : 0.2))
+            start.press(forDuration: 0.05, thenDragTo: end)
         }
         XCTAssertTrue(element.isHittable, "Action must be reachable without a bottom overlay")
     }
@@ -93,5 +100,78 @@ final class GameplayUITests: XCTestCase {
     @MainActor private func snapshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIApplication().screenshot())
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    @MainActor func testOperationsScreensAndStockPurchase() throws {
+        let app = launch(["--garage-ui-testing"])
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Lager"], in: app); app.buttons["Lager"].tap()
+        let buy = app.buttons["stock-buy-cpu-old"]
+        reveal(buy, in: app); buy.tap()
+        XCTAssertFalse(app.alerts["Rack & Rich"].exists)
+        XCTAssertTrue(app.staticTexts["1 Stück"].exists)
+        snapshot("10-stock")
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Talente"], in: app); app.buttons["Talente"].tap()
+        XCTAssertTrue(app.staticTexts["Bekanntheit"].exists)
+        snapshot("11-talents")
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Aufträge"], in: app); app.buttons["Aufträge"].tap()
+        XCTAssertTrue(app.staticTexts["Ein bisschen mehr Leistung, bitte."].exists)
+        snapshot("12-jobs")
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Mitarbeiter"], in: app); app.buttons["Mitarbeiter"].tap()
+        let hire = app.buttons["hire-maintenance"]
+        reveal(hire, in: app); hire.tap()
+        XCTAssertTrue(app.staticTexts["Mitarbeiter im Dienst"].exists)
+        snapshot("13-staff")
+        close(app)
+    }
+    @MainActor func testTutorialCanBeShownAfterAutomaticTimeout() throws {
+        let app = launch()
+        let dismiss = app.buttons["Tutorial ausblenden"]
+        XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: dismiss)
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 25), .completed)
+        app.buttons["Einstellungen"].tap()
+        let show = app.buttons["show-tutorial"]
+        reveal(show, in: app); show.tap(); close(app)
+        XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+        snapshot("14-tutorial-reopened")
+    }
+    @MainActor func testRepairTalentJobAndRackPayment() throws {
+        let app = launch(["--operations-ui-testing"])
+        app.buttons["rack-0"].tap()
+        let server = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'server-'")).firstMatch
+        reveal(server, in: app); server.tap()
+        let repair = app.buttons["repair-from-stock"]
+        reveal(repair, in: app); repair.tap()
+        XCTAssertFalse(app.alerts["Rack & Rich"].exists)
+        XCTAssertFalse(repair.exists)
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Talente"], in: app); app.buttons["Talente"].tap()
+        // Exercise both directions: reach the bottom branch, then return to revenue.
+        reveal(app.buttons["talent-loyalty"], in: app)
+        let talent = app.buttons["talent-revenue"]
+        reveal(talent, in: app); talent.tap()
+        XCTAssertTrue(app.staticTexts["1 / 5"].exists)
+        snapshot("15-talent-upgraded")
+        close(app)
+        app.buttons["laptop"].tap()
+        reveal(app.buttons["Aufträge"], in: app); app.buttons["Aufträge"].tap()
+        let accept = app.buttons["job-accept"]
+        reveal(accept, in: app); accept.tap()
+        XCTAssertFalse(app.alerts["Rack & Rich"].exists)
+        XCTAssertFalse(accept.exists)
+        snapshot("16-active-job")
+        close(app)
+        app.buttons["Simulation fortsetzen"].tap()
+        // SwiftUI exposes a Label as either a combined element or static text across OS versions.
+        let receipt = app.descendants(matching: .any).matching(identifier: "rack-cash-receipt").firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 5))
+        snapshot("17-rack-payment")
     }
 }

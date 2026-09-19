@@ -9,6 +9,7 @@ import UIKit
     @Published var loading = true
     @Published var paused = false
     @Published var speed = 1
+    @Published var tutorialRevision = 0
     private var lastTick = ProcessInfo.processInfo.systemUptime
     private var remainder = 0.0
     private var ticks = 0
@@ -57,6 +58,7 @@ import UIKit
                     } else { state = GameState() }
                     #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("--garage-ui-testing") { state = try UITestFixtures.garage() }
+                    if ProcessInfo.processInfo.arguments.contains("--operations-ui-testing") { state = try UITestFixtures.operations() }
                     if ProcessInfo.processInfo.arguments.contains("--unlock-ui-testing") { state = try UITestFixtures.garage(); state.location = .bedroom; state.racks = [state.racks[0]]; state.cash = 20000; state.milestoneCompleted = false; state.garageOperatingHours = 0; state.customers = state.customers.filter { $0.serverID == state.racks[0].servers[0].id } }
                     #endif
                     let hours = SaveStore.offline(&state, now: Date())
@@ -64,7 +66,8 @@ import UIKit
                 }.value
                 guard generation == loadGeneration, active else { return }
                 game = result.0
-                if result.1 >= 24 { message = "Willkommen zurück! \(result.1/24) Spieltage wurden offline simuliert. Einnahmen werden zum Monatsende ausgezahlt." }
+                game.operations.receipts = []
+                if result.1 >= 24 { message = "Willkommen zurück! \(result.1/24) Spieltage wurden offline simuliert. Kundenzahlungen, Lagerreparaturen und Mitarbeiter liefen weiter." }
                 if result.2 { message = "Sicherung wiederhergestellt." }
                 loading = false; lastTick = ProcessInfo.processInfo.systemUptime
                 save()
@@ -129,6 +132,8 @@ import UIKit
         saveQueue.sync {}
         do {
             game = try SaveStore.load(from: saveURL.appendingPathExtension("backup"))
+            _ = SaveStore.offline(&game, now: Date())
+            game.operations.receipts = []
             // Preserve the unreadable primary for diagnosis before restoring the valid backup.
             if FileManager.default.fileExists(atPath: saveURL.path) {
                 let archive = saveURL.appendingPathExtension("damaged-\(Int(Date().timeIntervalSince1970))")
@@ -144,7 +149,7 @@ import UIKit
             for url in [saveURL, saveURL.appendingPathExtension("backup")] where FileManager.default.fileExists(atPath: url.path) {
                 try FileManager.default.moveItem(at: url, to: url.appendingPathExtension("archived-\(UUID().uuidString)"))
             }
-            game = GameState(); saveProblem = nil; loading = false; remainder = 0; save()
+            game = GameState(); saveProblem = nil; loading = false; remainder = 0; tutorialRevision += 1; save()
         } catch { message = "Neustart fehlgeschlagen: \(error.localizedDescription)" }
     }
 
@@ -152,6 +157,17 @@ import UIKit
 
 #if DEBUG
 private enum UITestFixtures {
+    static func operations() throws -> GameState {
+        var state = try garage()
+        state.operations.coins = 10
+        state.operations.jobs = []
+        JobSystem.generate(in: &state)
+        try InventorySystem.buy("cpu-old", quantity: 2, in: &state)
+        InventorySystem.fail(state.servers[0].id, partID: "cpu-old", in: &state)
+        state.customers[0].billing?.nextPaymentHour = state.hour + 1
+        state.customers[0].billing?.accrued = 100
+        return state
+    }
     static func garage() throws -> GameState {
         var state = GameState()
         state.powerID = "home-max"
@@ -163,6 +179,7 @@ private enum UITestFixtures {
             customer.id = UUID(); customer.name = "GarageTest\(index)"
             customer.booked = .init(cpu: 0.1, ram: 0.1, storage: 1, network: 0.1)
             customer.contract = CustomerContract(months: 3, hour: 0)
+            customer.billing = CustomerBilling(hour: 0)
             customer.monthlyPrice = 250; customer.serverID = state.servers[0].id
             return customer
         }
