@@ -143,7 +143,9 @@ public enum InventorySystem {
     }
     public static func tick(_ state: inout GameState) {
         guard state.operations.automaticRepairs else { return }
-        for server in state.servers where server.isOn {
+        // Power state controls hosting, not whether a failed part can be replaced.
+        // repair preserves isOn and validates the room before consuming stock.
+        for server in state.servers where server.fault != nil {
             if let failure = server.failure, state.hour - failure.startedHour >= state.autoRepairHours {
                 try? repair(server.id, in: &state)
             }

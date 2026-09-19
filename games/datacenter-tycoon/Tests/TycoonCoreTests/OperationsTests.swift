@@ -109,6 +109,46 @@ final class OperationsTests: XCTestCase {
         XCTAssertTrue(g.servers[0].online)
         XCTAssertEqual(g.operations.stock["cpu-old"], 0)
     }
+    func testAutomaticRepairOfPoweredOffServerWaitsAndKeepsItOff() throws {
+        var g = GameState(); let id = g.servers[0].id
+        try InventorySystem.buy("cpu-old", quantity: 2, in: &g)
+        InventorySystem.fail(id, partID: "cpu-old", in: &g)
+        try ShopSystem.toggle(id, in: &g)
+        Simulation.advance(hours: g.autoRepairHours - 1, state: &g)
+        XCTAssertNotNil(g.servers[0].failure)
+        XCTAssertEqual(g.operations.stock["cpu-old"], 2)
+
+        Simulation.advance(hours: 1, state: &g)
+        XCTAssertNil(g.servers[0].fault)
+        XCTAssertNil(g.servers[0].failure)
+        XCTAssertFalse(g.servers[0].isOn)
+        XCTAssertFalse(g.servers[0].online)
+        XCTAssertEqual(g.watts, 0)
+        XCTAssertEqual(g.reservedWatts, 0)
+        XCTAssertEqual(g.operations.stock["cpu-old"], 1)
+        Simulation.advance(hours: 24, state: &g)
+        XCTAssertEqual(g.operations.stock["cpu-old"], 1, "Only the failed component is consumed once")
+        try ShopSystem.toggle(id, in: &g)
+        XCTAssertTrue(g.servers[0].online)
+    }
+    func testPoweredOffRepairResumesOfflineWhenReplacementIsRestocked() throws {
+        var g = GameState(); let id = g.servers[0].id
+        InventorySystem.fail(id, partID: "cpu-old", in: &g)
+        try ShopSystem.toggle(id, in: &g)
+        Simulation.advance(hours: g.autoRepairHours, state: &g)
+        XCTAssertNotNil(g.servers[0].fault)
+        try InventorySystem.buy("cpu-old", quantity: 1, in: &g)
+        g.lastSavedAt = Date(timeIntervalSince1970: 100000)
+        g = try SaveStore.decode(SaveStore.encode(g))
+
+        let now = g.lastSavedAt.addingTimeInterval(Balance.secondsPerDay / 24)
+        XCTAssertEqual(SaveStore.offline(&g, now: now), 1)
+        XCTAssertNil(g.servers[0].fault)
+        XCTAssertNil(g.servers[0].failure)
+        XCTAssertFalse(g.servers[0].isOn)
+        XCTAssertEqual(g.operations.stock["cpu-old"], 0)
+        XCTAssertEqual(try SaveStore.decode(SaveStore.encode(g)), g)
+    }
     func testRepairCannotConsumeStockIfPowerLimitWouldBeExceeded() throws {
         var g = GameState(); g.cash = 10000
         try ShopSystem.buyServer(in: g.racks[0].id, state: &g)
